@@ -46,6 +46,35 @@
 \clubpenalty=10000
 \raggedbottom
 
+% Coding inclusions
+\usepackage{listings}
+
+% Define custom colors for the code blocks
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+
+% Setup the style for the listings package
+\lstdefinestyle{mystyle}{
+	backgroundcolor=\color{backcolour},   
+	commentstyle=\color{codegreen},
+	keywordstyle=\color{magenta},
+	numberstyle=\tiny\color{codegray},
+	stringstyle=\color{codepurple},
+	basicstyle=\ttfamily\footnotesize,
+	breakatwhitespace=false,         
+	breaklines=true,                 
+	captionpos=b,                    
+	keepspaces=true,                 
+	numbers=left,                    
+	numbersep=5pt,                  
+	showspaces=false,                
+	showstringspaces=false,
+	showtabs=false,                  
+	tabsize=4
+}
+\lstset{style=mystyle}
 
 
 % Document beginning 
@@ -61,14 +90,23 @@
 	\listoftables
 	\clearpage
 
+	% Theory
     \input{Chapters/introduction}
     \input{Chapters/theory}
     \clearpage
     
+    % Experiments
     \input{Chapters/setup}
     \input{Chapters/execution}
+    \clearpage
     
-
+    % Conclusions
+    \input{Chapters/conclusions}
+    
+    % Annexes
+    \appendix 
+    \clearpage
+    \input{Annexes/scenario1}
 
     % Bibliography
     \bibliographystyle{unsrt}

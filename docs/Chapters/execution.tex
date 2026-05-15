@@ -1,0 +1,72 @@
+\section{Experimental Execution}
+With the smart home environment topology established and the foresinc toolchain configured in the forensic experimental workstation, this section details the practical execution of the four predefined scenarios. The primary aim is to generate, capture and analyze the network traffic associated with both normal IoT operations and the specific selected cyber threat vectors. For each scenario, the methodology follows a strict procedural pipeline:
+
+\begin{enumerate}
+	\item Orchestrate Mininet network simulation.
+	\item Acquire raw packet capture at the gateway
+	\item Extract metadata using Zeek
+	\item Perform a behavioural analysis of the resulting flows
+\end{enumerate}
+
+By comparing the anomalous traffic patterns generated in Scenarios 2, 3, and 4 against the operational baseline established in Scenario 1, this research validates the efficacy of passive network feature extraction for forensic timeline reconstruction.
+
+\subsection{Simulation Setup and Execution}
+To execute the scenarios, a Python script template sctructure has been defined. Utilizing the Mininet API, the scripts are deployed to orchestrate the virtual devices. The scripts instantiate the Open vSwitch gateway and configure the host nodes to generate specific traffic patterns mimicking physical IoT hardware. The template is modified to simulate the objectives defined in each scenario.
+
+For the \textbf{Smart Thermostat}, the simulation script utilizes simple scheduling commands (\texttt{cron} or Python \texttt{time.sleep} loops) to generate periodic TCP traffic directed at port 8883, simulating a secure MQTT "keep-alive" heartbeat every 10 seconds as well as periodical temperature measurements every 10 minutes. Furthermore, periodic UDP requests to port 123 were generated to simulate standard NTP time synchronization. 
+
+For the \textbf{Smart Camera}, a continuous stream of background UDP traffic was generated using the \texttt{iperf} utility, to accurately simulate a live, outbound video feed. Additionally, synthetic TLS handshakes were periodically executed against TCP port 443 to represent secure cloud telemetry check-ins. The smart camera also performs periodic UDP requests to port 123 to simulate standard NTP time synchronization. 
+
+Following the conclusion of the Mininet simulation, the resulting PCAP file of each scenario was processed using Zeek. Because the simulated payloads are encrypted, Deep Packet Inspection (DPI) has been discarded. Instead, Zeek successfully parsed the capture into structured metadata logs, specifically generating a \texttt{conn.log} (detailing connection states, bytes transferred, and durations) and a \texttt{dns.log} (documenting the plaintext domain resolution requests).
+
+Finally, all the extracted metadata from all experimental runs underwent a comparative behavioural analysis. By comparing network features such as Inter Arrival Times (IAT), flow durations, and volumetric byte transfers with the baseline fingerprints of the devices. The comparison of the attack based metrics together with the baseline allows drawing the definitive conclusions regarding the viability of passive IoT network forensics. 
+
+\subsection{Scenario 1: Operational Baseline Behaviour}
+\subsubsection{Introduction and Objectives}
+Scenario 1 serves as the control environment for the entirety of the experimental phase. In this scenario, the smart home network operates under standard, benign conditions without any external interference or malicious activity from the attacker node. The primary objective is to establish a mathematically verifiable "ground truth" of the network's behavior. The scenario goals in detail are the following:
+
+\begin{enumerate}
+	\item Generate realistic, benign background traffic that strictly adheres to the Manufacturer Usage Description (MUD) profiles defined previously in Table \ref{table:camera_mud} (Smart Camera) and Table \ref{table:thermostat_mud} (Smart Thermostat).
+	\item Capture the raw network interactions during standard operational states such as device boot-up, time synchronization, and periodic telemetry reporting.
+	\item Extract and catalogue baseline network metadata. This includes metrics such as flow durations, expected packet lengths, and Inter-Arrival Times (IAT)—to, with the objective to use them as the definitive reference point for anomaly detection in subsequent attack scenarios.
+\end{enumerate}
+
+The used code can be found in \ref{annex:scenario1_code}.
+
+\subsubsection{Expected Behaviour and Theoretical Baselines}
+
+To ensure statistical significance and provide a robust dataset for feature extraction, the Scenario 1 baseline simulation was executed over a continuous 60-minute capture period. Based on the programmed simulation parameters and the strict Access Control Lists defined in the MUD profiles, the theoretical network footprint of the smart home can be explicitly quantified prior to analysing the empirical Zeek data.
+
+Because the simulated environment operates under ideal, deterministic conditions without external interference, the expected behavioural fingerprint is highly predictable:
+
+\begin{itemize}
+	\item \textbf{Smart Thermostat (Deterministic Telemetry): The device is expected to generate exactly 360 secure MQTT "keep-alive" TCP flows directed at port 8883. Additionally, the device is expected to transmit exactly 10 heavier TCP payloads representing the periodic temperature and weather measurements. 
+	
+	\item \textbf{Smart Camera (Volumetric Streaming):} The capture is expected to show a massive, continuous stream of outbound UDP traffic on port 50005, representing the live video feed. This will be interspersed with a low frequency of TCP port 443 connections representing the synthetic TLS cloud check-ins.
+	
+	\item \textbf{Network Services (Time Synchronization):} Across the 60-minute capture, the combined environment is programmed to generate exactly 6 NTP time synchronization requests.
+	
+	\item \textbf{Domain Name Resolution:} Over the 60-minute capture, the environment will generate exactly 120 UDP DNS queries directed to port 53 on the local gateway. The Smart Camera will generate 60 queries, one every minute, to resolve cloud API and streaming hostnames, and the Smart Thermostat will independently generate 60 queries, one every minute, to resolve its MQTT broker hostname.
+	
+	\item \textbf{Attacker Node:} Because this scenario establishes the benign operational baseline, the attacker node must remain completely dormant. There should be exactly zero packets originating from or directed to the attacker's IP address (\texttt{10.0.0.3}).
+\end{itemize}
+
+
+\subsubsection{Obtained Results}
+
+
+
+
+
+\subsubsection{Baseline Analysis and Results}
+The analysis of the Zeek metadata confirms that the simulated environment performed exactly as intended, establishing a highly predictable forensic baseline. 
+
+First, an evaluation of the connection logs verified strict compliance with the established MUD profiles. Every recorded flow correctly mapped to the authorized destination IPs and ports outlined in Table \ref{table:camera_mud} and Table \ref{table:thermostat_mud}. No unexpected lateral movement or unauthorized external connections were detected. 
+
+Secondly, the mathematical extraction of flow features yielded clear behavioral fingerprints for both devices:
+\begin{itemize}
+	\item \textbf{Smart Thermostat Fingerprint:} The Inter-Arrival Time (IAT) analysis revealed a highly dense, consistent clustering of packets occurring precisely at 10-second intervals, representing the MQTT heartbeats. The packet length distribution for these flows remained uniformly small, characteristic of lightweight telemetry.
+	\item \textbf{Smart Camera Fingerprint:} The traffic volume analysis demonstrated a continuous, high-throughput UDP data stream. While the IAT was highly frequent and varied slightly due to the simulated video encoding, the outbound byte volume maintained a steady, predictable plateau without sudden, unexplained spikes.
+\end{itemize}
+
+By successfully capturing and quantifying these predictable baseline metrics, the methodology guarantees that any deviation introduced in the subsequent threat simulations—such as a sudden drop in IAT during a brute-force attack or an unauthorized port usage—can be immediately identified and correlated to a specific forensic event.

@@ -1,0 +1,40 @@
+\section{Methodology and Setup}
+
+\subsection{Introduction}
+The theoretical research presented in the previous chapter established that traditional, device-centric digital forensics are largely ineffective in modern Internet of Things (IoT) ecosystems. Driven by extreme data volatility and the pervasive adoption of encrypted communications, investigators basically rely on network-centric methodologies. Consequently, this chapter has the objective of proving those theoretical concepts by proposing and testing a practical, passive network forensic methodology based on traffic feature extraction and behavioral analysis.
+
+The primary objective of this experimental phase is to validate whether physical device states and malicious activities can be reliably inferred solely from encrypted network metadata. To achieve this in a controlled and academic manner, the experiment is conducted within a simulated smart home network. Due to budgeting constraints, the experiment was carried out by utilizing a simulated environment rather than physical hardware. This also ensures absolute control over the network topology, eliminates unexpected and undocumented background noise, and allows for the precise isolation of forensic artifacts. Furthermore, it guarantees that all experimental scenarios are strictly \textbf{replicable}.
+
+\subsection{Simulated Network Topology}
+To maintain consistency and ensure that any detected network anomalies are strictly the result of the simulated attacks, a standardized smart home topology was utilized across all experimental scenarios. The virtual network, orchestrated via Mininet, consists of a centralized gateway and three distinct end-nodes:
+\begin{itemize}
+	\item \textbf{The Gateway (Open vSwitch):} Acts as the central routing hub for the smart home. All network traffic between devices, and between the devices and the external internet, flows through this node. It serves as the primary chokepoint where \texttt{tcpdump} is deployed to capture the experimental PCAPs.
+	\item \textbf{Smart Camera Node:} A high-bandwidth virtual IoT device configured to simulate continuous or burst-driven TCP/UDP traffic, representing video streaming and periodic cloud check-ins.
+	\item \textbf{Smart Thermostat Node:} A low-bandwidth virtual IoT sensor designed to generate periodic, highly predictable MQTT or HTTP "keep-alive" telemetry data.
+	\item \textbf{Attacker Node:} An external virtual machine introduced into the network infrastructure to execute the designated threat scenarios against the localized IoT devices.
+\end{itemize}
+
+\subsubsection{Tools}
+To conduct this research, a specialized, open-source forensic toolchain was deployed within an isolated Ubuntu 22.04 Linux virtual environment:
+\begin{itemize}
+	\item \textbf{Network Emulation (Mininet):} Utilized to construct the Software-Defined Networking (SDN) topology, acting as the virtual smart home gateway and generating synthetic IoT edge nodes.
+	\item \textbf{Traffic Acquisition (Wireshark/tcpdump):} Deployed at the virtual gateway to act as an immutable observer, capturing all passing communications and generating raw Packet Capture (PCAP) files.
+	\item \textbf{Feature Extraction (Zeek):} Functioning as the core network security monitor, Zeek was employed to parse the encrypted PCAPs and extract readable, structured metadata logs in order to not rely on Deep Packet Inspection (DPI).
+	\item \textbf{Data Analysis (Python):} The extracted Zeek logs were subsequently ingested into Python (utilizing the Pandas and Matplotlib libraries) to filter background noise and visualize the behavioral fingerprints of the devices.
+\end{itemize}
+
+\subsubsection{Experimental Scenarios}
+
+To thoroughly evaluate the effectiveness of the proposed feature extraction methodology, the experimental phase is divided into four distinct scenarios. Each scenario is designed to leave a uniquely identifiable "fingerprint" within the network metadata.
+
+\begin{enumerate}
+	\item \textbf{Scenario 1: Operational Baseline (Normal Behavior):} In this control scenario, no malicious activity occurs. The IoT devices boot, request IP addresses, synchronize time via NTP, and transmit their standard telemetry. This capture establishes the "ground truth" baseline for Inter-Arrival Times (IAT) and standard flow volumes, acting as the reference point for all subsequent anomaly detection.
+	
+	\item \textbf{Scenario 2: Network Reconnaissance and Brute-Force Authentication:} The external attacker node performs a rapid port scan to map the smart home, followed by a concentrated password brute-force attack against the Smart Camera. This scenario tests the methodology's ability to detect localized, high-frequency connection rejections.
+	
+	\item \textbf{Scenario 3: Unauthorized State Change and Data Exfiltration:} Following a simulated compromise, the attacker triggers the Smart Camera to begin streaming high-density data to an unauthorized external IP address. This scenario evaluates the capacity to map a sudden spike in volumetric data and altered packet lengths to a specific physical state change (camera activation).
+	
+	\item \textbf{Scenario 4: Botnet Infection (Outbound DDoS):} Simulating a Mirai-style malware infection, the low-bandwidth Smart Thermostat is hijacked and instructed to flood an external web server with outbound TCP SYN packets. This scenario demonstrates how to identify severe violations of a device's expected Manufacturer Usage Description (MUD) profile and baseline whitelist.
+\end{enumerate}
+
+

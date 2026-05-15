@@ -1,0 +1,77 @@
+\documentclass[11pt, a4paper]{article}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[margin=2cm, top=2cm, includefoot]{geometry}
+\usepackage{amsmath} % Fractions
+\usepackage{array} % Arrays
+\usepackage[font=small]{caption} % Define the captions style
+\captionsetup[table]{skip=15pt}
+\usepackage{cite}
+\usepackage{enumitem} % Style itemize
+\usepackage{fancyhdr} % Define the style of pages
+\usepackage{float}
+\usepackage{graphicx} % Images
+\usepackage{geometry}
+\usepackage{helvet} % Typography
+\usepackage[hidelinks]{hyperref} % Hyperlinks
+\usepackage{longtable}% Tables
+\usepackage{ltablex} % Enables longtable + tabularx features
+\keepXColumns % Keeps X columns functioning in longtable
+\usepackage{parskip} % Tabulation in the document
+\usepackage{url} % URLs
+\usepackage[table]{xcolor} % Color
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning}
+\usepackage[margin=2cm, top=2cm, includefoot]{geometry}
+
+\usepackage{tabularx}    % For flexible-width tables
+\usepackage{booktabs}    % For better looking tables (toprule, midrule, bottomrule)
+
+
+\renewcommand{\familydefault}{\sfdefault}
+\graphicspath{ {./Images/} }
+\captionsetup{font=footnotesize}
+\newcolumntype{M}[1]{>{\centering\arraybackslash}m{#1}}
+
+% URL Style
+\hypersetup{
+	colorlinks=false,
+	linkcolor=black,
+	filecolor=magenta,      
+	urlcolor=blue
+}
+
+% Solve widows and orphans
+\widowpenalty=10000
+\clubpenalty=10000
+\raggedbottom
+
+
+
+% Document beginning 
+\begin{document}
+	\thispagestyle{empty}
+	\input{Chapters/cover}
+	\clearpage
+	\pagenumbering{arabic}
+	\tableofcontents
+	\clearpage
+	\listoffigures
+	\vspace*{0.5cm}
+	\listoftables
+	\clearpage
+
+    \input{Chapters/introduction}
+    \input{Chapters/theory}
+    \clearpage
+    
+    \input{Chapters/setup}
+    \input{Chapters/execution}
+    
+
+
+    % Bibliography
+    \bibliographystyle{unsrt}
+    \bibliography{bibliography} 
+	
+\end{document}

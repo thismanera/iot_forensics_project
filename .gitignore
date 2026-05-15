@@ -216,3 +216,23 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Custom ignores
+
+# Latex
+## Compiled files
+*.aux
+*.bbl
+*.blg
+*.dvi
+*.idx
+*.log
+*.out
+*.toc
+*.lof
+*.lot
+*.pdf
+*.synctex.gz
+
+## Sources
+docs/sources

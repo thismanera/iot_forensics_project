@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 =============================================================================
-Network Forensics Project — Scenario 1: The Operational Baseline
+Network Forensics Project — Scenario 4: Botnet Infection (Outbound DDoS)
 =============================================================================
 Topology
 --------
@@ -11,32 +11,37 @@ Topology
 
 Behaviour
 ---------
-  • camera      : Continuous UDP stream → gateway:5005
-                  (simulates an IP camera video feed, ~500 KB/s)
-                  NTP sync every 600 s (10 min) → 91.189.91.157:123
-  • thermostat  : TCP/ping keepalive every 10 s → gateway
-                  (simulates an MQTT keep-alive heartbeat)
-                  TCP temperature report every 360 s (6 min) → gateway
-                  (simulates an MQTT PUBLISH with a temperature reading)
-                  NTP sync every 600 s (10 min) → 91.189.91.157:123
-  • attacker    : Completely silent (no traffic generated)
+  • camera      : (Baseline) Continuous UDP stream → thermostat:50005
+                  (Baseline) NTP sync every 600 s → 91.189.91.157:123
+                  (Baseline) DNS queries every 60 s → gateway:53
+                  (Baseline) TLS telemetry every 300 s → 93.184.216.34:443
+  • thermostat  : (Baseline) TCP keep-alive every 10 s → gateway:8883
+                  (Baseline) Temperature report every 360 s → gateway:8883
+                  (Baseline) NTP sync every 600 s → 91.189.91.157:123
+                  (Baseline) DNS queries every 60 s → gateway:53
+                  (Hijacked) TCP SYN flood → DDOS_TARGET_IP:80
+                              starting at DDOS_START_DELAY seconds.
+                              Violates ALL MUD profile rules (new IP, new port,
+                              massive volume).
+  • attacker    : Sends a simulated Mirai-style C2 command to the thermostat
+                  (TCP to thermostat:23, mimicking Telnet-based C2 delivery)
+                  before the flood begins.
 
 Capture
 -------
   tcpdump is launched automatically on ALL interfaces (-i any).
-  The pcap file will be written to /tmp/scenario1_baseline.pcap inside
-  the Mininet VM / Linux host.
+  The pcap file will be written to /tmp/scenario4_botnet_ddos.pcap
 
 Usage
 -----
-  sudo python3 scenario1_baseline.py [--duration SECONDS] [--pcap PATH]
+  sudo python3 scenario4_botnet_ddos.py [--duration SECONDS] [--pcap PATH]
 
 Requirements
 ------------
   • Mininet   (http://mininet.org)
   • Open vSwitch (OVS)
   • Python 3.6+
-  • iperf3    (for UDP stream)  — install with: sudo apt install iperf3
+  • iperf3    — install with: sudo apt install iperf3
 =============================================================================
 """
 
@@ -54,23 +59,35 @@ from mininet.clean  import cleanup
 
 
 # ---------------------------------------------------------------------------
-# Constants
+# Constants — Baseline (mirrors scenarios 1–3)
 # ---------------------------------------------------------------------------
-DEFAULT_DURATION   = 3600         # Seconds the scenario runs before auto-stop (60 min). Default, the user can change it using --duration
-DEFAULT_PCAP_PATH  = "/tmp/scenario1_baseline.pcap"
-CAMERA_PORT        = 50005         # UDP destination port (simulated video feed)
-MQTT_PORT          = 8883         # TCP port (simulated MQTT keepalive target)
-NTP_PORT           = 123          # UDP port for NTP time synchronization
-DNS_PORT           = 53           # UDP port for DNS resolution
-TLS_PORT           = 443          # TCP port for TLS cloud telemetry
-KEEPALIVE_INTERVAL = 10           # Seconds between thermostat keepalives
-TEMPERATURE_INTERVAL = 360        # Seconds between thermostat temperature reports
-NTP_INTERVAL       = 600          # Seconds between NTP sync requests (10 min)
-DNS_INTERVAL       = 60           # Seconds between camera DNS queries (1 min)
-TLS_INTERVAL       = 300          # Seconds between camera TLS telemetry reports (5 min)
-NTP_SERVER         = "91.189.91.157" # Simulated external NTP server IP (ntp.ubuntu.com)
-TLS_CLOUD_SERVER   = "93.184.216.34"  # Simulated api.smartcamera.com (uses example.com IP)
-UDP_BANDWIDTH      = "500K"       # iperf3 UDP bandwidth for camera stream
+DEFAULT_DURATION       = 3600
+DEFAULT_PCAP_PATH      = "/tmp/scenario4_botnet_ddos.pcap"
+CAMERA_PORT            = 50005         # UDP — simulated legitimate video feed
+MQTT_PORT              = 8883          # TCP — Secure MQTT
+NTP_PORT               = 123           # UDP — NTP
+DNS_PORT               = 53            # UDP — DNS
+TLS_PORT               = 443           # TCP — TLS cloud telemetry
+KEEPALIVE_INTERVAL     = 10            # Seconds between thermostat keep-alives
+TEMPERATURE_INTERVAL   = 360           # Seconds between temperature reports
+NTP_INTERVAL           = 600           # Seconds between NTP syncs
+DNS_INTERVAL           = 60            # Seconds between DNS queries
+TLS_INTERVAL           = 300           # Seconds between TLS telemetry reports
+NTP_SERVER             = "91.189.91.157"
+TLS_CLOUD_SERVER       = "93.184.216.34"
+UDP_BANDWIDTH          = "500K"        # Normal camera stream bandwidth
+
+# ---------------------------------------------------------------------------
+# Constants — Botnet / DDoS (Scenario 4 specific)
+# ---------------------------------------------------------------------------
+# 198.51.100.0/24 is TEST-NET-3 (RFC 5737) — safe for simulation,
+# represents an external web server being targeted.
+DDOS_TARGET_IP         = "198.51.100.1"  # Simulated external victim web server
+DDOS_TARGET_PORT       = 80              # HTTP — typical DDoS target port
+DDOS_START_DELAY       = 60             # Seconds of clean baseline before flood starts
+DDOS_SYN_DELAY_S       = 0.002          # Seconds between SYN probes (~500/s)
+C2_PORT                = 23             # Telnet port — Mirai-style C2 delivery
+THERMOSTAT_IP          = "10.0.0.2"     # Thermostat IP (compromised bot node)
 
 
 # ---------------------------------------------------------------------------
@@ -102,27 +119,22 @@ def build_topology(pcap_path: str):
         autoStaticArp=True,
     )
 
-    # -- Switch (gateway) -----------------------------------------------------
     info("*** Adding OVS gateway switch\n")
     gateway = net.addSwitch("s1", cls=OVSSwitch, failMode="standalone")
 
-    # -- Hosts ----------------------------------------------------------------
     info("*** Adding hosts\n")
     camera     = net.addHost("camera",     ip="10.0.0.1/24", mac="00:00:00:00:00:01")
     thermostat = net.addHost("thermostat", ip="10.0.0.2/24", mac="00:00:00:00:00:02")
     attacker   = net.addHost("attacker",   ip="10.0.0.3/24", mac="00:00:00:00:00:03")
 
-    # -- Links ----------------------------------------------------------------
     info("*** Creating links\n")
     net.addLink(camera,     gateway)   # s1-eth1
     net.addLink(thermostat, gateway)   # s1-eth2
     net.addLink(attacker,   gateway)   # s1-eth3
 
-    # -- Start network --------------------------------------------------------
     info("*** Starting network\n")
     net.start()
 
-    # Verify basic connectivity (ping all-pairs once)
     info("*** Testing connectivity\n")
     net.pingAll()
 
@@ -130,71 +142,50 @@ def build_topology(pcap_path: str):
 
 
 # ---------------------------------------------------------------------------
-# Traffic generators
+# Baseline traffic generators (mirrors scenarios 1–3)
 # ---------------------------------------------------------------------------
 
-def start_camera_udp_stream(camera, gateway_ip: str, duration: int):
+def start_camera_udp_stream(camera, sink_ip: str, duration: int):
     """
-    Camera → gateway : continuous UDP stream using iperf3.
-    Simulates a low-bitrate IP camera video feed.
-
-    The gateway acts as the iperf3 server; the camera is the client.
-    We start the server on the gateway IP (but since the gateway is a switch
-    without an IP in this topology, we use the thermostat as the reflector /
-    sink instead — a realistic IoT NVR scenario).
+    Camera → thermostat : continuous legitimate UDP video stream at ~500 KB/s.
     """
-    info("*** [camera] Starting UDP video-feed stream\n")
+    info("*** [camera] Starting legitimate UDP video-feed stream\n")
 
-    # iperf3 server on thermostat (acts as NVR / cloud endpoint)
-    # We launch it in the background with & so it doesn't block.
     camera.cmd(
         f"iperf3 -s -u -p {CAMERA_PORT} -1 --daemon "
         f"--logfile /tmp/iperf3_server_camera.log"
     )
-
-    # Small pause to let the server start
     time.sleep(1)
 
-    # iperf3 UDP client — camera streams to thermostat IP as a stand-in NVR
-    # (In a real deployment this would be an external NVR/cloud server.)
-    thermostat_ip = "10.0.0.2"
     camera.cmd(
-        f"iperf3 -c {thermostat_ip} -u -p {CAMERA_PORT} "
+        f"iperf3 -c {sink_ip} -u -p {CAMERA_PORT} "
         f"-b {UDP_BANDWIDTH} -t {duration} "
-        f"--logfile /tmp/iperf3_client_camera.log &"
+        f"--logfile /tmp/iperf3_client_camera_baseline.log &"
     )
     info(
-        f"    camera → thermostat ({thermostat_ip}:{CAMERA_PORT}) "
+        f"    camera → thermostat ({sink_ip}:{CAMERA_PORT}) "
         f"UDP {UDP_BANDWIDTH} for {duration}s\n"
     )
 
 
 def start_thermostat_keepalive(thermostat, gateway_ip: str, duration: int):
     """
-    Thermostat → gateway : a lightweight TCP SYN / ping every KEEPALIVE_INTERVAL s.
-    Simulates an MQTT PINGREQ keep-alive packet.
-
-    The TCP connection is established every 10 seconds from the thermostat to the
-    gateway's MQTT port (1883). 
-
-    We use a small Python one-liner loop running inside the host's shell so
-    the timing is handled in the background independently of the main process.
+    Thermostat → gateway : TCP keep-alive every KEEPALIVE_INTERVAL s.
+    This continues running even after the botnet infection begins — the
+    thermostat maintains its legitimate MQTT heartbeat while simultaneously
+    flooding the DDoS target, which is itself a forensic anomaly.
     """
-    info("*** [thermostat] Starting MQTT keep-alive simulation\n")
+    info("*** [thermostat] Starting Secure MQTT keep-alive simulation\n")
 
-    # We send a TCP connect (3-way handshake) then immediately close it, which
-    # is representative of an MQTT PINGREQ/PINGRESP exchange at the packet level.
-    # Using /dev/tcp bash built-in avoids needing extra tools.
     keepalive_script = (
         f"while true; do "
         f"  python3 -c \""
-        f"import socket, time; "
+        f"import socket; "
         f"s = socket.socket(); "
         f"s.settimeout(3); "
         f"s.connect(('{gateway_ip}', {MQTT_PORT})); "
         f"s.send(b'MQTT_PINGREQ'); "
         f"s.close()\" 2>/dev/null || "
-        # Fallback: plain ICMP ping if TCP connection is refused
         f"  ping -c 1 -W 2 {gateway_ip} > /dev/null 2>&1; "
         f"  sleep {KEEPALIVE_INTERVAL}; "
         f"done"
@@ -203,23 +194,20 @@ def start_thermostat_keepalive(thermostat, gateway_ip: str, duration: int):
     thermostat.cmd(f"bash -c '{keepalive_script}' &")
     info(
         f"    thermostat → gateway ({gateway_ip}:{MQTT_PORT}) "
-        f"TCP keepalive every {KEEPALIVE_INTERVAL}s\n"
+        f"TCP keep-alive every {KEEPALIVE_INTERVAL}s\n"
     )
 
 
 def start_thermostat_temperature_report(thermostat, gateway_ip: str, duration: int):
     """
-    Thermostat → gateway : a simulated MQTT PUBLISH every TEMPERATURE_INTERVAL s.
-    Simulates a thermostat sending its current temperature.
-
-    Every 6 minutes, the thermostat sends a TCP packet to the gateway's MQTT port (1883).
+    Thermostat → gateway : MQTT PUBLISH every TEMPERATURE_INTERVAL s.
     """
-    info("*** [thermostat] Starting MQTT temperature report simulation\n")
+    info("*** [thermostat] Starting temperature report simulation\n")
 
     report_script = (
         f"while true; do "
         f"  python3 -c \""
-        f"import socket, time; "
+        f"import socket; "
         f"s = socket.socket(); "
         f"s.settimeout(3); "
         f"s.connect(('{gateway_ip}', {MQTT_PORT})); "
@@ -233,14 +221,13 @@ def start_thermostat_temperature_report(thermostat, gateway_ip: str, duration: i
     thermostat.cmd(f"bash -c '{report_script}' &")
     info(
         f"    thermostat → gateway ({gateway_ip}:{MQTT_PORT}) "
-        f"TCP temperature report every {TEMPERATURE_INTERVAL}s\n"
+        f"temperature report every {TEMPERATURE_INTERVAL}s\n"
     )
 
 
 def start_ntp_sync(node, ntp_server_ip: str):
     """
-    Simulates periodic NTP requests from an IoT device to an external NTP server.
-    Sends a valid 48-byte NTP client request packet over UDP port 123.
+    Periodic NTP requests (UDP/123) to an external NTP server.
     """
     info(f"*** [{node.name}] Starting simulated NTP sync to {ntp_server_ip}\n")
 
@@ -259,24 +246,18 @@ def start_ntp_sync(node, ntp_server_ip: str):
 
 def start_camera_dns_queries(camera, gateway_ip: str):
     """
-    Camera → Local Gateway : periodic UDP DNS queries on port 53.
-    Simulates the camera resolving cloud hostnames (api.smartcamera.com,
-    stream.smartcamera.com, pool.ntp.org) before making outbound connections.
-
-    A minimal valid DNS query for 'api.smartcamera.com' is crafted and sent
-    as a raw UDP datagram to the gateway IP on port 53.
+    Camera → gateway : periodic UDP DNS queries (port 53) every DNS_INTERVAL s.
     """
     info(f"*** [camera] Starting simulated DNS queries to {gateway_ip}\n")
 
-    # Minimal DNS query wire format for 'api.smartcamera.com' (type A, class IN)
     dns_query = (
-        "b'\\x00\\x01'"  # Transaction ID: 1
-        " + b'\\x01\\x00'"  # Flags: standard recursive query
-        " + b'\\x00\\x01'"  # Questions: 1
-        " + b'\\x00\\x00' * 3"  # Answer/NS/Additional RRs: 0
-        " + b'\\x03api\\x0csmartcamera\\x03com\\x00'"  # QNAME
-        " + b'\\x00\\x01'"  # QTYPE: A
-        " + b'\\x00\\x01'"  # QCLASS: IN
+        "b'\\x00\\x01'"
+        " + b'\\x01\\x00'"
+        " + b'\\x00\\x01'"
+        " + b'\\x00\\x00' * 3"
+        " + b'\\x03api\\x0csmartcamera\\x03com\\x00'"
+        " + b'\\x00\\x01'"
+        " + b'\\x00\\x01'"
     )
 
     dns_script = (
@@ -298,13 +279,7 @@ def start_camera_dns_queries(camera, gateway_ip: str):
 
 def start_camera_tls_telemetry(camera, cloud_server_ip: str):
     """
-    Camera → Internet : periodic TCP connection on port 443.
-    Simulates the camera sending TLS cloud telemetry to api.smartcamera.com.
-
-    A TCP SYN + TLS ClientHello-like handshake initiation is performed.
-    The connection is closed immediately after (no full TLS negotiation
-    is performed since the server is simulated), which is sufficient to
-    produce the correct packet signature in the pcap capture.
+    Camera → Internet : periodic TCP connection on port 443 every TLS_INTERVAL s.
     """
     info(f"*** [camera] Starting simulated TLS telemetry to {cloud_server_ip}\n")
 
@@ -330,24 +305,18 @@ def start_camera_tls_telemetry(camera, cloud_server_ip: str):
 
 def start_thermostat_dns_queries(thermostat, gateway_ip: str):
     """
-    Thermostat → Local Gateway : periodic UDP DNS queries on port 53.
-    Simulates the thermostat resolving the MQTT broker hostname
-    (mqtt.smartthermostat.com) before establishing its connection.
-
-    A minimal valid DNS query for 'mqtt.smartthermostat.com' is crafted
-    and sent as a raw UDP datagram to the gateway IP on port 53.
+    Thermostat → gateway : periodic UDP DNS queries (port 53) every DNS_INTERVAL s.
     """
     info(f"*** [thermostat] Starting simulated DNS queries to {gateway_ip}\n")
 
-    # Minimal DNS query wire format for 'mqtt.smartthermostat.com' (type A, class IN)
     dns_query = (
-        "b'\\x00\\x02'"  # Transaction ID: 2
-        " + b'\\x01\\x00'"  # Flags: standard recursive query
-        " + b'\\x00\\x01'"  # Questions: 1
-        " + b'\\x00\\x00' * 3"  # Answer/NS/Additional RRs: 0
-        " + b'\\x04mqtt\\x0fsmartThermostat\\x03com\\x00'"  # QNAME
-        " + b'\\x00\\x01'"  # QTYPE: A
-        " + b'\\x00\\x01'"  # QCLASS: IN
+        "b'\\x00\\x02'"
+        " + b'\\x01\\x00'"
+        " + b'\\x00\\x01'"
+        " + b'\\x00\\x00' * 3"
+        " + b'\\x04mqtt\\x0fsmartThermostat\\x03com\\x00'"
+        " + b'\\x00\\x01'"
+        " + b'\\x00\\x01'"
     )
 
     dns_script = (
@@ -367,23 +336,107 @@ def start_thermostat_dns_queries(thermostat, gateway_ip: str):
     )
 
 
-def attacker_activity(attacker):
+# ---------------------------------------------------------------------------
+# Attacker / Botnet traffic generators (Scenario 4 specific)
+# ---------------------------------------------------------------------------
+
+def send_c2_infection_command(attacker, thermostat_ip: str, c2_delay: int):
     """
-    Attacker host: No traffic will be generated.
-    The interface is intentionally left idle to reflect a real forensic
-    baseline where the attacker has not yet begun their campaign.
+    Attacker → thermostat:23 : Mirai-style C2 command delivery via Telnet port.
+
+    Simulates the botnet C2 server instructing the already-infected thermostat
+    to begin its DDoS flood. In real Mirai infections, the bot receives commands
+    via a TCP connection on port 23 (Telnet), which it originally used to spread
+    by brute-forcing weak Telnet credentials.
+
+    This single anomalous inbound connection to the thermostat from the attacker
+    is a key forensic indicator — it violates the thermostat's MUD profile
+    (no inbound connections are expected) and precedes the flood onset.
     """
-    info("*** [attacker] Node is SILENT — no traffic will be generated\n")
-    # Deliberately no commands issued to the attacker host.
+    info(
+        f"*** [attacker] Scheduling Mirai-style C2 command → "
+        f"thermostat ({thermostat_ip}:{C2_PORT}) in {c2_delay}s\n"
+    )
+
+    c2_script = (
+        f"python3 -c \""
+        f"import socket, time; "
+        f"time.sleep({c2_delay}); "
+        f"print('--- [attacker] Sending C2 infection command ---'); "
+        f"s = socket.socket(socket.AF_INET, socket.SOCK_STREAM); "
+        f"s.settimeout(3); "
+        f"s.connect_ex(('{thermostat_ip}', {C2_PORT})); "
+        f"s.send("
+        f"  b'\\xff\\xfb\\x01\\xff\\xfb\\x03'  "  # Telnet IAC WILL ECHO, WILL SGA
+        f"  b'ATTACK {DDOS_TARGET_IP} {DDOS_TARGET_PORT} tcp 9999\\n'"
+        f"); "
+        f"s.close(); "
+        f"print('--- [attacker] C2 command sent ---'); "
+        f"\""
+    )
+
+    attacker.cmd(f"bash -c '{c2_script}' &")
+
+
+def start_botnet_syn_flood(thermostat, target_ip: str,
+                            target_port: int, flood_delay: int):
+    """
+    Thermostat → DDOS_TARGET_IP:80 : high-volume TCP SYN flood attack.
+
+    Simulates a Mirai-style infected IoT device participating in a botnet DDoS.
+    The thermostat opens rapid TCP connections to the victim web server on port 80,
+    never completing the handshake — each attempt generates a SYN packet, and
+    since the target is unreachable (simulated IP), an immediate RST/timeout
+    occurs, but the SYN packets are captured and generate the DDoS signature.
+
+    Forensic indicators in the pcap:
+      • Sudden massive spike in thermostat outbound TCP traffic at T+DDOS_START_DELAY
+      • All packets destined for a SINGLE external IP never seen in the baseline
+      • Destination port 80 — not in the thermostat MUD profile (only 8883/123/53)
+      • No corresponding inbound traffic (SYNs go unanswered — victim unreachable)
+      • Thermostat's legitimate MQTT keep-alives continue alongside the flood —
+        a dual-traffic anomaly indicating background malware co-existing with
+        normal device operation
+    """
+    info(
+        f"*** [thermostat] Scheduling Mirai-style SYN flood → "
+        f"{target_ip}:{target_port} (starts in {flood_delay}s)\n"
+    )
+
+    flood_script = (
+        f"python3 -c \""
+        f"import socket, time; "
+        f"time.sleep({flood_delay}); "
+        f"print('--- [thermostat] SYN flood started ---'); "
+        f"target_ip = '{target_ip}'; "
+        f"target_port = {target_port}; "
+        f"delay = {DDOS_SYN_DELAY_S}; "
+        f"while True: "
+        f"  try: "
+        f"    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM); "
+        f"    s.settimeout(0.05); "
+        f"    s.connect_ex((target_ip, target_port)); "
+        f"    s.close(); "
+        f"  except: pass; "
+        f"  time.sleep(delay); "
+        f"\""
+    )
+
+    thermostat.cmd(f"bash -c '{flood_script}' &")
+    info(
+        f"    thermostat → {target_ip}:{target_port} "
+        f"TCP SYN flood ~{int(1/DDOS_SYN_DELAY_S)} packets/s "
+        f"(starts at T+{flood_delay}s)\n"
+    )
 
 
 # ---------------------------------------------------------------------------
-# Capture instructions (printed to stdout for the operator)
+# Capture instructions
 # ---------------------------------------------------------------------------
 
 TCPDUMP_BANNER = """
 ╔══════════════════════════════════════════════════════════════════════════════╗
-║              tcpdump CAPTURE — Scenario 1 Baseline                         ║
+║         tcpdump CAPTURE — Scenario 4 Botnet Infection (Outbound DDoS)      ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
 ║                                                                              ║
 ║  Capturing ALL traffic on every interface (-i any).                         ║
@@ -409,24 +462,15 @@ def print_capture_instructions(pcap_path: str):
 
 def launch_tcpdump(pcap_path: str) -> subprocess.Popen:
     """
-    Launch tcpdump on all interfaces to capture the full baseline.
+    Launch tcpdump on all interfaces (-i any) to capture the full scenario.
     Returns the Popen handle so the caller can terminate it later.
     """
     iface = "any"
-    cmd = [
-        "tcpdump",
-        "-i", iface,
-        "-w", pcap_path,
-        "--immediate-mode",
-    ]
+    cmd = ["tcpdump", "-i", iface, "-w", pcap_path, "--immediate-mode"]
     info(f"*** Launching tcpdump on {iface} → {pcap_path}\n")
     try:
-        proc = subprocess.Popen(
-            cmd,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.PIPE,
-        )
-        time.sleep(1)  # Give tcpdump a moment to open the capture file
+        proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+        time.sleep(1)
         return proc
     except FileNotFoundError:
         error("tcpdump not found — install with: sudo apt install tcpdump\n")
@@ -442,21 +486,20 @@ def launch_tcpdump(pcap_path: str) -> subprocess.Popen:
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description="Scenario 1 — Smart-home Operational Baseline (Mininet)"
+        description="Scenario 4 — Botnet Infection (Outbound DDoS) (Mininet)"
     )
     parser.add_argument(
         "--duration", "-d",
         type=int,
         default=DEFAULT_DURATION,
-        help=f"How long (seconds) to run the scenario before stopping. "
-             f"Default: {DEFAULT_DURATION}. Use 0 to drop into interactive CLI.",
+        help=f"How long (seconds) to run the scenario. "
+             f"Default: {DEFAULT_DURATION}. Use 0 for interactive CLI.",
     )
     parser.add_argument(
         "--pcap", "-p",
         type=str,
         default=DEFAULT_PCAP_PATH,
-        help=f"Output path for the baseline pcap file. "
-             f"Default: {DEFAULT_PCAP_PATH}",
+        help=f"Output path for the scenario pcap file. Default: {DEFAULT_PCAP_PATH}",
     )
     return parser.parse_args()
 
@@ -465,42 +508,50 @@ def run_scenario(args):
     setLogLevel("info")
 
     info("=" * 70 + "\n")
-    info(" Scenario 1 — Smart-Home Operational Baseline\n")
+    info(" Scenario 4 — Botnet Infection (Outbound DDoS)\n")
     info("=" * 70 + "\n")
 
-    # Print capture instructions for the operator
     print_capture_instructions(args.pcap)
 
     # ── Build topology ────────────────────────────────────────────────────
     net, gateway, camera, thermostat, attacker = build_topology(args.pcap)
 
-    # Determine gateway IP.  Because the gateway is an OVS switch it does
-    # not have an IP assigned by Mininet.  We use thermostat as the MQTT
-    # broker / NVR proxy target (realistic for a home-network scenario).
-    # For keep-alive pings we fall back to ICMP → thermostat.
-    gateway_ip = "10.0.0.2"   # thermostat acts as broker / NVR endpoint
+    gateway_ip = "10.0.0.2"   # Thermostat acts as MQTT broker / NVR proxy
 
-    # ── Launch tcpdump on all interfaces ─────────────────────────────────
+    # ── Launch tcpdump ────────────────────────────────────────────────────
     tcpdump_proc = launch_tcpdump(args.pcap)
 
-    # ── Start traffic ────────────────────────────────────────────────────
-    info("\n*** Starting traffic generators\n")
-
-    attacker_activity(attacker)
+    # ── Start baseline traffic ────────────────────────────────────────────
+    info("\n*** Starting baseline traffic generators\n")
 
     start_thermostat_keepalive(thermostat, gateway_ip, args.duration)
-
     start_thermostat_temperature_report(thermostat, gateway_ip, args.duration)
-
     start_thermostat_dns_queries(thermostat, gateway_ip)
 
     start_camera_udp_stream(camera, gateway_ip, args.duration)
-
     start_camera_dns_queries(camera, gateway_ip)
     start_camera_tls_telemetry(camera, TLS_CLOUD_SERVER)
 
     start_ntp_sync(camera, NTP_SERVER)
     start_ntp_sync(thermostat, NTP_SERVER)
+
+    # ── Start attacker — botnet C2 and DDoS flood ─────────────────────────
+    info("\n*** Starting botnet infection sequence\n")
+    info(
+        f"    Clean baseline for {DDOS_START_DELAY}s, then C2 command delivered "
+        f"and thermostat begins SYN flooding {DDOS_TARGET_IP}:{DDOS_TARGET_PORT}.\n"
+    )
+
+    # Attacker delivers the C2 command to the thermostat via Telnet port
+    send_c2_infection_command(attacker, THERMOSTAT_IP, DDOS_START_DELAY)
+
+    # Thermostat (now acting as bot) begins the SYN flood
+    start_botnet_syn_flood(
+        thermostat,
+        DDOS_TARGET_IP,
+        DDOS_TARGET_PORT,
+        DDOS_START_DELAY,
+    )
 
     # ── Run scenario ─────────────────────────────────────────────────────
     if args.duration == 0:
@@ -509,15 +560,21 @@ def run_scenario(args):
         CLI(net)
     else:
         info(f"\n*** Scenario running for {args.duration} seconds …\n")
+        info(f"    DDoS flood begins at T+{DDOS_START_DELAY}s.\n")
         info("    Press Ctrl-C to stop early.\n\n")
         try:
             for elapsed in range(args.duration):
                 time.sleep(1)
                 if (elapsed + 1) % 10 == 0:
-                    info(f"    [{elapsed + 1:4d}/{args.duration}s] "
-                         f"Scenario 1 running — "
-                         f"camera streaming, thermostat active, NTP active, "
-                         f"attacker silent\n")
+                    phase = (
+                        "BASELINE only"
+                        if (elapsed + 1) <= DDOS_START_DELAY
+                        else f"BASELINE + SYN FLOOD active → {DDOS_TARGET_IP}:{DDOS_TARGET_PORT}"
+                    )
+                    info(
+                        f"    [{elapsed + 1:4d}/{args.duration}s] "
+                        f"Scenario 4 — {phase}\n"
+                    )
         except KeyboardInterrupt:
             info("\n*** Interrupted by user\n")
 
@@ -531,7 +588,7 @@ def run_scenario(args):
 
     net.stop()
     info("*** Network stopped\n")
-    info(f"\n    Baseline capture: {args.pcap}\n")
+    info(f"\n    Scenario 4 capture: {args.pcap}\n")
     info("    Open with: wireshark " + args.pcap + "\n")
     info("=" * 70 + "\n")
 
@@ -539,7 +596,6 @@ def run_scenario(args):
 if __name__ == "__main__":
     args = parse_args()
 
-    # Mininet requires root
     import os
     if os.geteuid() != 0:
         print("[ERROR] This script must be run with sudo / as root.")

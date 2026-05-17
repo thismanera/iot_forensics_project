@@ -76,6 +76,19 @@
 }
 \lstset{style=mystyle}
 
+\usepackage{tcolorbox}
+
+% Define the custom terminal box style
+\newtcolorbox{terminalbox}{
+	colback=black!85!white, % Dark grey/black background
+	coltext=white!95!black, % Off-white text
+	colframe=black,         % Black border
+	boxrule=0.5pt,
+	arc=4pt,                % Rounded corners
+	fontupper=\ttfamily\footnotesize, % Monospace font
+	left=5pt, right=5pt, top=5pt, bottom=5pt
+}
+
 
 % Document beginning 
 \begin{document}

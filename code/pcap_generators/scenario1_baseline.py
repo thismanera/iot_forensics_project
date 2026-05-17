@@ -23,7 +23,7 @@ from mininet.clean  import cleanup
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
-DEFAULT_DURATION     = 3600         
+DEFAULT_DURATION     = 1200         
 DEFAULT_PCAP_PATH    = "pcaps/originals/scenario1_baseline.pcap"
 CAMERA_PORT          = 50005        
 MQTT_PORT            = 8883         
@@ -31,7 +31,7 @@ NTP_PORT             = 123
 DNS_PORT             = 53           
 TLS_PORT             = 443          
 KEEPALIVE_INTERVAL   = 10           
-TEMPERATURE_INTERVAL = 360          
+TEMPERATURE_INTERVAL = 300          
 NTP_INTERVAL         = 600          
 DNS_INTERVAL         = 60           
 TLS_INTERVAL         = 300          

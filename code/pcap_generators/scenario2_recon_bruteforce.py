@@ -37,6 +37,13 @@ DNS_INTERVAL         = 60
 TLS_INTERVAL         = 300          
 CLOUD_IP             = "10.0.0.254" 
 UDP_BANDWIDTH        = "500K"       
+BEHAVIOURS_DIR        = os.path.join(os.path.dirname(__file__), "iot_behaviours")
+MQTT_KEEPALIVE_SCRIPT = os.path.join(BEHAVIOURS_DIR, "mqtt_keepalive.py")
+MQTT_TEMP_SCRIPT      = os.path.join(BEHAVIOURS_DIR, "mqtt_temperature.py")
+NTP_SYNC_SCRIPT       = os.path.join(BEHAVIOURS_DIR, "ntp_sync.py")
+DNS_QUERY_SCRIPT      = os.path.join(BEHAVIOURS_DIR, "dns_query.py")
+CAMERA_TLS_SCRIPT     = os.path.join(BEHAVIOURS_DIR, "camera_tls_telemetry.py")
+CAMERA_UDP_SCRIPT     = os.path.join(BEHAVIOURS_DIR, "camera_udp_stream.py")
 
 # Attacker timing and behavior
 ATTACKER_IP                 = "10.0.0.3"
@@ -129,70 +136,45 @@ def start_cloud_listeners(cloud):
 # ---------------------------------------------------------------------------
 def start_camera_udp_stream(camera, target_ip: str, duration: int):
     info("*** [camera] Starting UDP video-feed stream\n")
-    
-    safe_duration = 86400 if duration == 0 else duration
-    
     camera.cmd(
-        f"iperf3 -c {target_ip} -u -p {CAMERA_PORT} "
-        f"-b {UDP_BANDWIDTH} -t {safe_duration} "
+        f"python3 {CAMERA_UDP_SCRIPT} {target_ip} {CAMERA_PORT} {UDP_BANDWIDTH} {duration} "
         f"> /tmp/iperf3_client_camera.log 2>&1 &"
     )
 
-def start_thermostat_keepalive(thermostat, target_ip: str):
+def start_thermostat_keepalive(thermostat, target_ip: str, duration: int):
     info("*** [thermostat] Starting MQTT keep-alive simulation\n")
-
-    script = (
-        f"while true; do "
-        f"  python3 -c 'import socket; s = socket.socket(); s.settimeout(3); "
-        f"s.connect((\"{target_ip}\", {MQTT_PORT})); s.send(b\"MQTT_PINGREQ\"); s.close()' 2>/dev/null; "
-        f"  sleep {KEEPALIVE_INTERVAL}; "
-        f"done"
+    thermostat.cmd(
+        f"python3 {MQTT_KEEPALIVE_SCRIPT} {target_ip} {MQTT_PORT} {KEEPALIVE_INTERVAL} {duration} "
+        f"> /tmp/thermostat_keepalive.log 2>&1 &"
     )
-    thermostat.cmd(f"{script} &")
 
-def start_thermostat_temperature_report(thermostat, target_ip: str):
+def start_thermostat_temperature_report(thermostat, target_ip: str, duration: int):
     info("*** [thermostat] Starting MQTT temperature report simulation\n")
-    script = (
-        f"while true; do "
-        f"  python3 -c 'import socket; s = socket.socket(); s.settimeout(3); "
-        f"s.connect((\"{target_ip}\", {MQTT_PORT})); s.send(b\"MQTT_PUBLISH: payload=22.5C\"); s.close()' 2>/dev/null; "
-        f"  sleep {TEMPERATURE_INTERVAL}; "
-        f"done"
+    thermostat.cmd(
+        f"python3 {MQTT_TEMP_SCRIPT} {target_ip} {MQTT_PORT} {TEMPERATURE_INTERVAL} {duration} "
+        f"> /tmp/thermostat_temperature.log 2>&1 &"
     )
-    thermostat.cmd(f"{script} &")
 
-def start_ntp_sync(node, target_ip: str):
+def start_ntp_sync(node, target_ip: str, duration: int):
     info(f"*** [{node.name}] Starting simulated NTP sync\n")
-    script = (
-        f"while true; do "
-        f"  python3 -c 'import socket; s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM); "
-        f"s.sendto(b\"\\x1b\" + 47 * b\"\\x00\", (\"{target_ip}\", {NTP_PORT}))' 2>/dev/null; "
-        f"  sleep {NTP_INTERVAL}; "
-        f"done"
+    node.cmd(
+        f"python3 {NTP_SYNC_SCRIPT} {target_ip} {NTP_PORT} {NTP_INTERVAL} {duration} "
+        f"> /tmp/{node.name}_ntp_sync.log 2>&1 &"
     )
-    node.cmd(f"{script} &")
 
-def start_dns_queries(node, target_ip: str, domain: str):
+def start_dns_queries(node, target_ip: str, domain: str, duration: int):
     info(f"*** [{node.name}] Starting simulated DNS queries for {domain}\n")
-    script = (
-        f"while true; do "
-        f"  dig @{target_ip} -p {DNS_PORT} {domain} +short > /dev/null 2>&1; "
-        f"  sleep {DNS_INTERVAL}; "
-        f"done"
+    node.cmd(
+        f"python3 {DNS_QUERY_SCRIPT} {target_ip} {domain} {DNS_PORT} {DNS_INTERVAL} {duration} "
+        f"> /tmp/{node.name}_dns_query.log 2>&1 &"
     )
-    node.cmd(f"bash -c '{script}' &")
 
-def start_camera_tls_telemetry(camera, target_ip: str):
+def start_camera_tls_telemetry(camera, target_ip: str, duration: int):
     info(f"*** [camera] Starting simulated TLS telemetry\n")
-    script = (
-        f"while true; do "
-        f"  python3 -c 'import socket; s = socket.socket(socket.AF_INET, socket.SOCK_STREAM); "
-        f"s.settimeout(3); s.connect((\"{target_ip}\", {TLS_PORT})); "
-        f"s.send(b\"\\x16\\x03\\x01\\x00\\xf1\\x01\\x00\\x00\\xed\\x03\\x03\"); s.close()' 2>/dev/null; "
-        f"  sleep {TLS_INTERVAL}; "
-        f"done"
+    camera.cmd(
+        f"python3 {CAMERA_TLS_SCRIPT} {target_ip} {TLS_PORT} {TLS_INTERVAL} {duration} "
+        f"> /tmp/camera_tls_telemetry.log 2>&1 &"
     )
-    camera.cmd(f"{script} &")
 
 # ---------------------------------------------------------------------------
 # Attacker traffic generators (Scenario 2 specific)
@@ -353,22 +335,21 @@ def launch_tcpdump(pcap_path: str):
         "-Z", "root",           
         "-i", "any",            
         "-U",                   
-        "-w", "-",              
+        "-s", "0",
+        "-w", abs_path,
         "net", "10.0.0.0/24"    
     ]
     
     errlog = f"/tmp/tcpdump_{os.path.basename(pcap_path)}.log"
     
     try:
-        outfile = open(abs_path, "wb")
         el = open(errlog, "wb")
         
-        proc = subprocess.Popen(cmd, stdout=outfile, stderr=el)
+        proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=el)
         time.sleep(1)
         
         if proc.poll() is not None:
             el.close()
-            outfile.close()
             with open(errlog, "r") as f:
                 err_details = f.read().strip()
                 
@@ -377,7 +358,7 @@ def launch_tcpdump(pcap_path: str):
             return None, None
             
         info(f"*** tcpdump pid={proc.pid} capturing successfully. Stderr log: {errlog}\n")
-        return proc, outfile
+        return proc, None
         
     except Exception as e:
         error(f"*** Error starting tcpdump: {e}\n")
@@ -398,10 +379,6 @@ def stop_gateway_capture(proc, file_obj, pcap_path):
                 pass
 
     time.sleep(1)
-
-    # Explicitly close the file object to flush the buffer
-    if file_obj and not file_obj.closed:
-        file_obj.close()
 
     # Check the actual string path, not the Python file object
     if pcap_path and os.path.exists(pcap_path):
@@ -432,15 +409,15 @@ def run_scenario(args):
     start_cloud_listeners(cloud)
     attacker_activity(attacker, args.duration)
     
-    start_dns_queries(thermostat, CLOUD_IP, "mqtt.smartthermostat.com")
-    start_thermostat_keepalive(thermostat, CLOUD_IP)
-    start_thermostat_temperature_report(thermostat, CLOUD_IP)
-    start_ntp_sync(thermostat, CLOUD_IP)
+    start_dns_queries(thermostat, CLOUD_IP, "mqtt.smartthermostat.com", args.duration)
+    start_thermostat_keepalive(thermostat, CLOUD_IP, args.duration)
+    start_thermostat_temperature_report(thermostat, CLOUD_IP, args.duration)
+    start_ntp_sync(thermostat, CLOUD_IP, args.duration)
     
-    start_dns_queries(camera, CLOUD_IP, "api.smartcamera.com")
+    start_dns_queries(camera, CLOUD_IP, "api.smartcamera.com", args.duration)
     start_camera_udp_stream(camera, CLOUD_IP, args.duration)
-    start_camera_tls_telemetry(camera, CLOUD_IP)
-    start_ntp_sync(camera, CLOUD_IP)
+    start_camera_tls_telemetry(camera, CLOUD_IP, args.duration)
+    start_ntp_sync(camera, CLOUD_IP, args.duration)
 
     # ── Attacker traffic is handled in attacker_activity() ───────────────
     

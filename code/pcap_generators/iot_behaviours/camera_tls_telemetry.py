@@ -28,9 +28,12 @@ def main() -> int:
 
     target_ip, port, interval, duration = args
     start_time = time.time()
+    next_send = start_time
 
     while duration <= 0 or time.time() - start_time < duration:
-        loop_start = time.time()
+        now = time.time()
+        if now < next_send:
+            time.sleep(next_send - now)
 
         try:
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -41,9 +44,7 @@ def main() -> int:
         except Exception:
             pass
 
-        execution_time = time.time() - loop_start
-        sleep_time = max(0, interval - execution_time)
-        time.sleep(sleep_time)
+        next_send += interval
 
     return 0
 

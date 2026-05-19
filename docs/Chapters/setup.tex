@@ -85,7 +85,7 @@ To conduct this research, a specialized, open-source forensic toolchain was depl
 	\item \textbf{Network Emulation (Mininet\cite{lantz2010network}):} Utilized to construct the Software-Defined Networking (SDN) topology, acting as the virtual smart home gateway and generating synthetic IoT edge nodes.
 	\item \textbf{Traffic Acquisition (Wireshark\cite{wireshark}/tcpdump\cite{tcpdump}):} Deployed at the virtual gateway to act as an immutable observer, capturing all passing communications and generating raw Packet Capture (PCAP) files.
 	\item \textbf{Feature Extraction (Zeek\cite{paxson1999bro}):} Functioning as the core network security monitor, Zeek was employed to parse the encrypted PCAPs and extract readable, structured metadata logs in order to not rely on Deep Packet Inspection (DPI).
-	\item \textbf{Data Analysis (Python):} The extracted Zeek logs were subsequently ingested into Python (utilizing the Pandas\cite{mckinney2010data} and Matplotlib libraries) to filter background noise and visualize the behavioral fingerprints of the devices.
+	\item \textbf{Data Analysis (Python):}  Zeek logs were subsequently ingested into Python (utilizing the Pandas\cite{mckinney2010data} and Matplotlib libraries) to filter background noise and visualize the behavioral fingerprints of the devices.
 \end{itemize}
 
 \subsection{Experimental Scenarios}

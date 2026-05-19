@@ -1,31 +1,115 @@
-\subsection{Scenario 2: Operational Baseline Behaviour}
+\subsection{Scenario 2: Network Reconnaissance and Brute-Force Authentication}
 \subsubsection{Introduction and Objectives}
-Scenario 1 serves as the control environment for the entirety of the experimental phase. In this scenario, the smart home network operates under standard, benign conditions without any external interference or malicious activity from the attacker node. The primary objective is to establish a mathematically verifiable "ground truth" of the network's behavior. The scenario goals in detail are the following:
+Scenario 2 introduces the first active adversarial engagement within the experimental smart home network. In this phase, the previously established zero-trust architecture is subjected to targeted malicious activity originating from the internal attacker node (\texttt{10.0.0.3}), simulating a compromised lateral asset. The attacker has not been designed as an external entity, since this would complicate the architectural setup without adding an extra valuable forensic value. The primary objective is to measure and document the network's structural and statistical deviations from the Scenario 1 control baseline. The scenario goals in detail are the following:
 
 \begin{enumerate}
-	\item Generate realistic, benign background traffic that strictly adheres to the Manufacturer Usage Description (MUD) profiles defined previously in Table \ref{table:camera_mud} (Smart Camera) and Table \ref{table:thermostat_mud} (Smart Thermostat).
-	\item Capture the raw network interactions during standard operational states such as device boot-up, time synchronization, and periodic telemetry reporting.
-	\item Extract and catalogue baseline network metadata. This includes metrics such as flow durations, expected packet lengths, and Inter-Arrival Times (IAT)—to, with the objective to use them as the definitive reference point for anomaly detection in subsequent attack scenarios.
+	\item Execute internal network reconnaissance and targeted port scanning against the IoT edge devices. This phase captures the systemic footprint of unauthorized topology mapping, specifically documenting the resulting surge in aborted and rejected TCP connection states.
+	\item Launch a volumetric credential brute-force attack targeting the Smart Camera's local TLS control channel (TCP port 443), capturing the exponential spike in network flow density as the attacker attempts to guess the administrative password.
+	\item Deploy a malicious configuration payload from the attacker node to the compromised camera, simulating a successful hijack and subsequent alteration of the device's operational state.
+	\item Extract and catalogue the resulting adversarial network metadata. By comparing metrics such as TCP state distributions, node-to-node adjacency matrices, and directional byte ratios against the Scenario 1 ground truth, the objective is to definitively prove the violation of the authorized MUD profiles.
 \end{enumerate}
 
-The used code can be found in \ref{annex:scenario1_code}.
 
 \subsubsection{Expected Behaviour and Theoretical Baselines}
 
-To ensure statistical significance and provide a robust dataset for feature extraction, the Scenario 1 baseline simulation was executed over a continuous 60-minute capture period. Based on the programmed simulation parameters and the strict Access Control Lists defined in the MUD profiles, the theoretical network footprint of the smart home can be explicitly quantified prior to analysing the empirical Zeek data.
+To ensure statistical significance and provide a robust dataset for feature extraction, the Scenario 2 has also been executed for 1200 seconds (20-minutes) capture period. 
 
-Because the simulated environment operates under ideal, deterministic conditions without external interference, the expected behavioural fingerprint is highly predictable:
+This scenario expects to obtain the same behaviour from the network with the addition of new ones: 
 
 \begin{itemize}
-	\item \textbf{Smart Thermostat (Deterministic Telemetry): The device is expected to generate exactly 360 secure MQTT "keep-alive" TCP flows directed at port 8883. Additionally, the device is expected to transmit exactly 10 heavier TCP payloads representing the periodic temperature and weather measurements. 
-		
-		\item \textbf{Smart Camera (Volumetric Streaming):} The capture is expected to show a massive, continuous stream of outbound UDP traffic on port 50005, representing the live video feed. This will be interspersed with a low frequency of TCP port 443 connections representing the synthetic TLS cloud check-ins.
-		
-		\item \textbf{Network Services (Time Synchronization):} Across the 60-minute capture, the combined environment is programmed to generate exactly 6 NTP time synchronization requests.
-		
-		\item \textbf{Domain Name Resolution:} Over the 60-minute capture, the environment will generate exactly 120 UDP DNS queries directed to port 53 on the local gateway. The Smart Camera will generate 60 queries, one every minute, to resolve cloud API and streaming hostnames, and the Smart Thermostat will independently generate 60 queries, one every minute, to resolve its MQTT broker hostname.
-		
-		\item \textbf{Attacker Node:} Because this scenario establishes the benign operational baseline, the attacker node must remain completely dormant. There should be exactly zero packets originating from or directed to the attacker's IP address (\texttt{10.0.0.3}).
-\end{itemize}
+	\item \textbf{Lateral Reconnaissance (TCP State Disruption):} The attacker node will execute a subnet scan. This will manifest forensically as a massive volumetric surge in \texttt{REJ} (Rejected) and \texttt{S0} (Attempted, no reply) Zeek connection states as the scanner enumerates closed ports, drastically skewing the healthy \texttt{SF} baseline established in Scenario 1. Consequently the number of connection flows together will increase, specially generating a huge spike during the network scan. 
 	
-	\subsubsection{Obtained Results}
+	\item \textbf{High-Density Connection Spikes (Credential Brute-Force):} The targeted attack on the Smart Camera's local TLS control channel (TCP port 443) will shatter the flat, low-density operational baseline. We expect to capture a constant spike in the Network Flow Density (flows per minute), representing rapid, iterative password guessing from the adversary.
+	
+	\item \textbf{Asymmetric Throughput Inversion (Payload Injection):} Following a successful brute-force breach, the attacker will push a malicious configuration payload to the camera. This action will visibly corrupt the camera's Directional Byte Ratio; the device will transition from a steady $>99\%$ outbound data footprint to registering a sudden, anomalous surge in inbound received data (\texttt{resp\_bytes}).
+	
+	\item \textbf{Adjacency Matrix Violation (MUD Corruption):} The strict node-to-node isolation observed in the control scenario will be visibly broken. The Topology Interaction Heatmap will log unauthorized lateral traffic originating from \texttt{10.0.0.3} and terminating at all the devices of the network (network scan), as well as an increased number of packets for the Camera (\texttt{10.0.0.1}) due to the brute force attack.
+\end{itemize}
+
+\subsubsection{Evidence Integrity and Feature Extraction}
+The same steps of \ref{evidence_integrity} have been followed to guarantee the integrity and validity of the extracted features. 
+
+\paragraph{MUD Profile Validation}\mbox{}\\
+
+The primary objective of the baseline scenario analysis is to verify that the simulated IoT devices adhered strictly to their programmed MUD profiles during the simulation execution. By cross-referencing the theoretical behavioral parameters against the empirical Zeek metadata, the operational integrity of the smart home topology can be definitively proven.
+
+The following table compares the expected flows versus the empirical flows. As it can be observed, since it is the baseline scenario, a 100\% accuracy is achieved.
+
+\begin{table}[H]
+	\centering
+	\renewcommand{\arraystretch}{1.1}
+	% Resizebox forces the table to perfectly fit the text width of your page
+	\resizebox{\textwidth}{!}{%
+		\begin{tabular}{@{}l c c l@{}}
+			\toprule
+			\textbf{Traffic Classification Profile} & \textbf{Expected Flows} & \textbf{Empirical Flows} & \textbf{Status / Delta} \\ 
+			\midrule
+			\multicolumn{4}{@{}l}{\textbf{Infrastructure \& Core Services}} \\
+			DNS Queries (UDP/53) & 42 & 42 & $\checkmark$ Exact Match \\
+			NTP Synchronization (UDP/123) & 6 & 6 & $\checkmark$ Exact Match \\
+			\addlinespace
+			\multicolumn{4}{@{}l}{\textbf{Smart Thermostat (10.0.0.2)}} \\
+			MQTT Keep-Alives (TCP/8883) & 121 & 121 & $\checkmark$ Exact Match \\
+			MQTT Telemetry Payloads (TCP/8883) & 5 & 5 & $\checkmark$ Exact Match \\
+			\addlinespace
+			\multicolumn{4}{@{}l}{\textbf{Smart Camera (10.0.0.1)}} \\
+			Video Feed Volumetric Stream (UDP/50005) & 1 & 1 & $\checkmark$ Exact Match \\
+			TLS Cloud Telemetry (TCP/443) & 5 & 5 & $\checkmark$ Exact Match \\
+			\addlinespace
+			\multicolumn{4}{@{}l}{\textbf{Environmental Noise / Unaccounted}} \\
+			Background ICMP (Gateway $\rightarrow$ Camera) & 0 & 1 & $\sim$ Minor Hypervisor Noise \\
+			\midrule
+			\textbf{Total Captured Flows} & \textbf{180} & \textbf{181} & \textbf{100\% Accuracy} \\
+			\bottomrule
+		\end{tabular}%
+	} % End of resizebox
+	\caption{Scenario 1: Theoretical Expected Traffic vs. Empirical Zeek Capture Baseline}
+	\label{tab:scenario1_baseline}
+\end{table}
+
+\textbf{As expected, no attacker activity has been registered.} 
+
+\paragraph{Camera Streaming Bandwidth}\mbox{}\\
+For visualization purposes, the network bandwidth was recalculated from bits per second to Kilobytes per minute (KB/min). Given a target bandwidth of 500 KB/s (configured as 4,000 Kbps in the pcap\_generator code), the expected bandwidth is 29,296.88 KB/min. The empirical results demonstrated an average of 27,857.80 KB/min. As seen in the figure below, this variance is entirely attributed to the brief temporal delays required to establish maximum transmission speed at \$t=0\$, as well as the socket teardown phase prior to the 1200-second mark. Excluding these boundary periods, the sustained bandwidth strictly adheres to the expected operational parameters.
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=0.9\linewidth]{../../iot_forensics_project/figures/scenario1/camera_volumetric_flow}
+	\caption{Smart Camera Bandwidth evolution over experiment time.}
+	\label{fig:cameravolumetricflow}
+\end{figure}
+
+In addition, the camera directional byte ratio has been calculated. From all the traffic exchanged between the camera and the gateway, 99.9998\% of the traffic has been sent by camera, while the rest are responses from the gateway. This is normal since the camera must act as data flow transmitter.
+
+\paragraph{Thermostat IAT Keep Alives}\mbox{}\\
+The temporal delta between consecutive keep-alive messages was calculated to assess baseline stability. While the theoretical expected interval is strictly defined at 10.0 seconds, the empirical results demonstrated a near-perfect mean Inter-Arrival Time (IAT) of 10.0004 seconds. Furthermore, the calculated standard deviation of just 0.5078 seconds proves that the execution overhead of the virtualized environment introduces negligible variance to the device's automated reporting loop.
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=0.9\linewidth]{../../iot_forensics_project/figures/scenario1/thermostat_iat_distribution}
+	\caption{IAT of Smart Thermostat Keep Alive messages.}
+	\label{fig:thermostatiatdistribution}
+\end{figure}
+
+In addition, the mean size of the temperature reports generated by the Smart Thermostate has been calculated. The standard size is of 27 bytes. This metric will be important in Scenario 4 since the Thermostat is expected to send multiple packets with a bigger size to simulate it has been infected as a botnet. 
+
+\paragraph{Other Metrics}\mbox{}\\
+A interaction heatmap has been developed to track and validate the expected communication patterns between the network's internal nodes. This matrix serves as visual proof of the environment's operational baseline, mapping which cross-node communications are authorized by the Manufacturer Usage Description (MUD) profiles. It should be noted that traffic originating from the gateway (inbound responses) was excluded from this visualization. This methodological scoping decision was made to filter out infrastructure noise, focusing the analytical lens strictly on the behaviors, vulnerabilities, and potential lateral movements of the IoT devices themselves during the attack simulations.
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=0.9\linewidth]{../../iot_forensics_project/figures/scenario1/topology_traffic_matrix}
+	\caption{Empirical interaction heatmap detailing authorized internal network flows.}
+	\label{fig:topologytrafficmatrix}
+\end{figure}
+
+Finally, another interesting metric is to track the TCP connection state distribution. In a secure, uncompromised IoT network, TCP sessions must exhibit highly disciplined behavioral patterns. Legitimate devices connect to designated cloud endpoints, execute their application-layer handshakes, and terminate gracefully. Therefore, this baseline metric should be heavily dominated by SF (Normal connection establishment and termination) since all the network traffic flows have been programmed to start and end in the duration of the experiment.
+
+As it can be observed all the connections are correctly finalized as expected.
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=0.9\linewidth]{../../iot_forensics_project/figures/scenario1/tcp_connection_states}
+	\caption{TCP Connection State Distribution}
+	\label{fig:tcpconnectionstates}
+\end{figure}

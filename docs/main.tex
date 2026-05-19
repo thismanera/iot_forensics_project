@@ -3,6 +3,7 @@
 \usepackage[utf8]{inputenc}
 \usepackage[margin=2cm, top=2cm, includefoot]{geometry}
 \usepackage{amsmath} % Fractions
+\usepackage{amssymb}
 \usepackage{array} % Arrays
 \usepackage[font=small]{caption} % Define the captions style
 \captionsetup[table]{skip=15pt}
@@ -115,11 +116,14 @@
     
     % Conclusions
     \input{Chapters/conclusions}
-    
-    % Annexes
-    \appendix 
     \clearpage
-    \input{Annexes/scenario1}
+    
+    \begin{comment}
+	    % Annexes
+	    \appendix 
+	    \clearpage
+	    \input{Annexes/scenario1}
+	 \end{comment}
 
     % Bibliography
     \bibliographystyle{unsrt}

@@ -1,32 +1,122 @@
-\subsection{Scenario 1: Operational Baseline Behaviour}
+\subsection{Scenario 4: Botnet Infection}
+\subsection{Scenario 3: Unauthorized State Chanfe and Data Exfiltration}
+
 \subsubsection{Introduction and Objectives}
-Scenario 1 serves as the control environment for the entirety of the experimental phase. In this scenario, the smart home network operates under standard, benign conditions without any external interference or malicious activity from the attacker node. The primary objective is to establish a mathematically verifiable "ground truth" of the network's behavior. The scenario goals in detail are the following:
+Scenario 3 advances the adversarial narrative estblished in the previous scenario from initial network compromise to post-exploitation, focusing specifically on data exfiltration and stealthy Command and Control (C2) communication. In this phase, the previously compromised Smart Camera is manipulated by the internal attacker node (\texttt{10.0.0.3}) to completely bypass its authorized constraints. To capture this dynamic, a new external adversarial (\texttt{203.0.113.5}) is introduced to act as the destination for the stolen data. The primary objective is to measure and document how post-exploitation routing anomalies and application-layer manipulations deviate from the Scenario 1 control baseline. The scenario goals in detail are the following:
 
 \begin{enumerate}
-	\item Generate realistic, benign background traffic that strictly adheres to the Manufacturer Usage Description (MUD) profiles defined previously in Table \ref{table:camera_mud} (Smart Camera) and Table \ref{table:thermostat_mud} (Smart Thermostat).
-	\item Capture the raw network interactions during standard operational states such as device boot-up, time synchronization, and periodic telemetry reporting.
-	\item Extract and catalogue baseline network metadata. This includes metrics such as flow durations, expected packet lengths, and Inter-Arrival Times (IAT)—to, with the objective to use them as the definitive reference point for anomaly detection in subsequent attack scenarios.
+	\item Execute a targeted trigger payload from the internal attacker to the Smart Camera's TLS control channel at a precise temporal marker ($t=300$ seconds). This simulates the localized activation of malware or a malicious configuration update, initiating the exfiltration sequence without generating broad network noise.
+	\item Demonstrate rogue data exfiltration and port masquerading. The Smart Camera will be forced to terminate its authorized local video stream and redirect the high-bandwidth UDP payload directly to the external rogue IP address. This exfiltration stream is deliberately mapped to port 443 to masquerade as benign outbound HTTPS traffic, challenging basic port-based firewall heuristics.
+	\item Execute a stealthy DNS hijacking maneuver. The compromised camera will seamlessly shift its domain name resolution requests to a malicious C2 domain (e.g., \texttt{c2.malicious-exfil.com}) while strictly maintaining its baseline 60-second polling frequency. This demonstrates an advanced evasion tactic designed to bypass purely volumetric anomaly detection by preserving statistical temporal normality.
 \end{enumerate}
 
-The used code can be found in \ref{annex:scenario1_code}.
 
 \subsubsection{Expected Behaviour and Theoretical Baselines}
 
-To ensure statistical significance and provide a robust dataset for feature extraction, the Scenario 1 baseline simulation was executed over a continuous 60-minute capture period. Based on the programmed simulation parameters and the strict Access Control Lists defined in the MUD profiles, the theoretical network footprint of the smart home can be explicitly quantified prior to analysing the empirical Zeek data.
+To ensure statistical significance and provide a robust dataset for comparative feature extraction, Scenario 3 has similarly been executed over a 1200-second (20-minute) capture period. 
 
-Because the simulated environment operates under ideal, deterministic conditions without external interference, the expected behavioural fingerprint is highly predictable:
+Unlike the highly visible, noisy volumetric attacks observed in Scenario 2, this scenario expects to demonstrate stealthy, post-exploitation behavior. The anticipated forensic deviations from the control baseline are:
 
 \begin{itemize}
-	\item \textbf{Smart Thermostat (Deterministic Telemetry): The device is expected to generate exactly 360 secure MQTT "keep-alive" TCP flows directed at port 8883. Additionally, the device is expected to transmit exactly 10 heavier TCP payloads representing the periodic temperature and weather measurements. 
-		
-		\item \textbf{Smart Camera (Volumetric Streaming):} The capture is expected to show a massive, continuous stream of outbound UDP traffic on port 50005, representing the live video feed. This will be interspersed with a low frequency of TCP port 443 connections representing the synthetic TLS cloud check-ins.
-		
-		\item \textbf{Network Services (Time Synchronization):} Across the 60-minute capture, the combined environment is programmed to generate exactly 6 NTP time synchronization requests.
-		
-		\item \textbf{Domain Name Resolution:} Over the 60-minute capture, the environment will generate exactly 120 UDP DNS queries directed to port 53 on the local gateway. The Smart Camera will generate 60 queries, one every minute, to resolve cloud API and streaming hostnames, and the Smart Thermostat will independently generate 60 queries, one every minute, to resolve its MQTT broker hostname.
-		
-		\item \textbf{Attacker Node:} Because this scenario establishes the benign operational baseline, the attacker node must remain completely dormant. There should be exactly zero packets originating from or directed to the attacker's IP address (\texttt{10.0.0.3}).
-	\end{itemize}
+	\item \textbf{Volumetric Camouflage (Flow Density Deception):} Unlike the massive flow spikes caused by the prior network scan and brute-force attacks, Scenario 3 is engineered to evade basic volumetric anomaly detection. Because the attacker only sends a single trigger payload at $t=300$, and the compromised camera simply redirects its existing bandwidth rather than creating new noise, the aggregate network flow density (flows per minute) is expected to falsely appear as a stable, healthy baseline. The main difference will be that the flow will be directed to a different port and domain. 
 	
+	\item \textbf{Protocol Masquerading (Port Inversion):} Following the payload trigger, the camera will terminate its authorized local video stream (UDP port 50005) and initiate a new data exfiltration stream. To bypass egress firewall filtering, this massive volumetric stream will target port 443. This will severely corrupt the network's protocol-to-port expectations, logging an anomalous, high-bandwidth UDP stream operating over a port traditionally reserved for TCP-based TLS traffic.
 	
-	\subsubsection{Obtained Results}
+	\item \textbf{Evasive Application-Layer Manipulation (DNS Hijacking):} The compromised camera will maintain its mathematically rigid 60 seconds Inter-Arrival Time (IAT) for DNS queries, further masking the attack from temporal flow analysis. However, it is expected to resolve a total different domain name, the C2 one in this case.
+	
+	\item \textbf{External Adjacency Matrix Violation (MUD Corruption):} The Topology Interaction Heatmap will log a cessation of the camera's heavy video traffic to the Gateway, instantly replaced by a massive new density cluster directed toward the unauthorized rogue cloud IP (\texttt{203.0.113.5}). This provides absolute visual proof of a critical Manufacturer Usage Description (MUD) profile breach.
+\end{itemize}
+
+\subsubsection{Evidence Integrity and Feature Extraction}
+The same steps of \ref{evidence_integrity} have been followed to guarantee the integrity and validity of the extracted features. 
+
+\paragraph{MUD Profile Validation}\mbox{}\\
+
+The primary objective of the baseline scenario analysis is to verify that the simulated IoT devices adhered strictly to their programmed MUD profiles during the simulation execution. By cross-referencing the theoretical behavioral parameters against the empirical Zeek metadata, the operational integrity of the smart home topology can be definitively proven.
+
+The following table compares the expected flows versus the empirical flows. As it can be observed, since it is the baseline scenario, a 100\% accuracy is achieved.
+
+\begin{table}[htbp]
+	\centering
+	\renewcommand{\arraystretch}{1.2}
+	\resizebox{\textwidth}{!}{%
+		\begin{tabular}{@{}l c c l@{}}
+			\toprule
+			\textbf{Traffic Classification Profile} & \textbf{Expected} & \textbf{Empirical} & \textbf{Status / Delta} \\ 
+			\midrule
+			\multicolumn{4}{@{}l}{\textbf{Authorized IoT Services}} \\
+			DNS Queries (UDP/53) & 42 & 42 & $\checkmark$ Baseline Match \\
+			NTP Synchronization (UDP/123) & 6 & 6 & $\checkmark$ Baseline Match \\
+			MQTT Keep-Alives (TCP/8883) & 121 & 121 & $\checkmark$ Baseline Match \\
+			MQTT Telemetry Payloads (TCP/8883) & 5 & 5 & $\checkmark$ Baseline Match \\
+			Video Feed Stream (UDP/50005) & 1 & 1 & $\checkmark$ Baseline Match \\
+			TLS Cloud Telemetry (TCP/443) & 5 & 5 & $\checkmark$ Baseline Match \\
+			\addlinespace
+			\multicolumn{4}{@{}l}{\textbf{Adversarial Activity (10.0.0.3)}} \\
+			Network Reconnaissance & 0 & 5,820 & $\times$ Attack Detected \\
+			Credential Brute-Force & 0 & 214 & $\times$ Attack Detected \\
+			Configuration Payload Injection & 0 & 12 & $\times$ Attack Detected \\
+			\midrule
+			\textbf{Total Connection Flows} & \textbf{180} & \textbf{6,227} & \textbf{3,459\% Volumetric Spike} \\
+			\bottomrule
+		\end{tabular}%
+	}
+	\caption{Scenario 2: Comparative Traffic Breakdown (Authorized vs. Adversarial)}
+	\label{tab:scenario2_traffic}
+\end{table}
+
+\textbf{As expected, attacker activity has been registered.} The empirical data is characterized by a massive volumetric surge, contributing the overwhelming majority of the 6,046 attacker-involved connections. Specially, because the scanner indiscriminately enumerates port ranges across the \texttt{10.0.0.0/24} architecture, causing an aggregate network density of a 3.459\% volumetric spike. 
+
+This massive structural deviation proves that while legitimate device operations continue to execute in the background, they are effectively buried under a high-density noise floor during an active reconnaissance campaign. This provides an undeniable, quantifiable signature for anomaly detection engines.
+
+\paragraph{Camera Behaviour}\mbox{}\\
+The observed activity from the Smart Camera matches the MUD, since the attack does not target its bandwidth or other messages. Basically, it tries to perform a brute force attack. 
+
+The only difference is the existence of 12 messages sent from the attacker to the camera after apparently successfully logging in. This does not change the camera behaviour as a transmitter since the same proportion of outbound and inbound messages is kept. Contrary to what was expected, the asymmetric throughput did not happen. However, in another scenario, an attacker could upload malware or any other type of data to take control of the device. 
+
+\paragraph{Thermostat Behaviour}\mbox{}\\
+The Smart Thermostat sees no changes in behaviour since it is not the target of the attack.
+
+\paragraph{Other Metrics}\mbox{}\\
+
+As illustrated in Figure \ref{fig:networkflowdensity}, the empirical flow density exhibits three distinct volumetric anomalies. Rather than a random distribution of noise, these deviations perfectly map to the chronological execution of the adversarial kill chain:
+
+\begin{itemize}
+	\item \textbf{Phase 1: The Reconnaissance Surge (Initial Spike):} The massive, immediate vertical spike observed at the beginning of the timeline represents the automated subnet and port sweep. Because network scanners operate asynchronously—flooding the target with thousands of simultaneous \texttt{SYN} probes to enumerate open ports—this phase generates an explosive but brief density maximum before the scanner concludes its mapping phase.
+	
+	\item \textbf{Phase 2: The Brute-Force Plateau (Sustained Volatility):} Following the initial scan, the graph does not return to the authorized baseline of $\sim$8 flows per minute. Instead, it transitions into a sustained plateau. This elevated constant peak represents the credential brute-force attack against the Smart Camera's TLS control channel (TCP port 443). The script executes rapid, iterative login attempts, generating a persistent high-density noise floor that persists for the majority of the attack window.
+	
+	\item \textbf{Phase 3: The Payload Injection (Terminal Anomaly):} Near the conclusion of the capture window, the brute-force plateau ceases, followed by a final, microscopic spike of exactly 12 flows. Forensically, this is the most critical metric on the timeline: it represents the moment of successful authentication and the subsequent injection of the malicious configuration payload, effectively altering the edge device's operational state just before the attacker terminates the session.
+\end{itemize}
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=0.9\linewidth]{../figures/scenario2/network_flow_density}
+	\caption{Network Flow Density (Scenario2).}
+	\label{fig:networkflowdensity}
+\end{figure}
+
+The TCP connection state distribution, also provides clear structural proof of the attack's impact on the network. As seen in Scenario 1, In a stable baseline, TCP flows primarily resolve with an \texttt{SF} (Normal) state flag, indicating successful connections and clean teardowns. While authorized IoT traffic continued normally during the attack (registering 133 \texttt{SF} flows), it was completely eclipsed by a massive surge in anomalous activity. 
+
+Specifically, Zeek recorded 6,041 flows terminating in a \texttt{REJ} (Rejected) state. This flag is logged when a target actively refuses a connection attempt via a TCP Reset (RST) packet. This spike in rejected handshakes is the direct footprint of the attacker (\texttt{10.0.0.3}) scanning the network. As the scanner flooded the IoT edge devices with \texttt{SYN} probes targeting closed ports, the devices continuously issued RST packets to block the unauthorized access. 
+
+Consequently, this sudden inversion of the \texttt{SF}-to-\texttt{REJ} ratio serves as an ideal, automated tripwire for detecting an active internal breach.
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=0.9\linewidth]{../../iot_forensics_project/figures/scenario2/tcp_connection_states}
+	\caption{TCP Connection State Distribution (Scenario 2).}
+	\label{fig:tcpconnectionstates}
+\end{figure}
+
+Finally, the interaction heatmaps is totally altered, in this scenario is exposing a network heavily saturated with unauthorized cross-node communications. The baseline has been broken by the attacker node which acts as the origin for all anomalous traffic. The matrix clearly distinguishes the broad network reconnaissance, evidenced by the 1,025 probes sent to both the Gateway and the Thermostat, from the targeted exploitation of the Smart Camera, which absorbed 3996 direct connections.
+
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=0.9\linewidth]{../../iot_forensics_project/figures/scenario2/topology_traffic_matrix}
+	\caption{Empirical interaction heatmap detailing authorized internal network flows (Scenario 2).}
+	\label{fig:topologytrafficmatrix}
+\end{figure}
+
+

@@ -1,0 +1,28 @@
+\section{Experimental Execution}
+With the smart home environment topology established and the foresinc toolchain configured in the forensic experimental workstation, this section details the practical execution of the four predefined scenarios. The primary aim is to generate, capture and analyze the network traffic associated with both normal IoT operations and the specific selected cyber threat vectors. For each scenario, the methodology follows a strict procedural pipeline:
+
+\begin{enumerate}
+	\item Orchestrate Mininet network simulation.
+	\item Acquire raw packet capture at the gateway
+	\item Extract metadata using Zeek
+	\item Perform a behavioural analysis of the resulting flows
+\end{enumerate}
+
+By comparing the anomalous traffic patterns generated in Scenarios 2, 3, and 4 against the operational baseline established in Scenario 1, this research validates the efficacy of passive network feature extraction for forensic timeline reconstruction.
+
+\subsection{Simulation Setup and Execution}
+To execute the scenarios, a Python script template sctructure has been defined. Utilizing the Mininet API, the scripts are deployed to orchestrate the virtual devices. The scripts instantiate the Open vSwitch gateway and configure the host nodes to generate specific traffic patterns mimicking physical IoT hardware. The template is modified to simulate the objectives defined in each scenario.
+
+For the \textbf{Smart Thermostat}, the simulation script utilizes simple scheduling commands (\texttt{cron} or Python \texttt{time.sleep} loops) to generate periodic TCP traffic directed at port 8883, simulating a secure MQTT "keep-alive" heartbeat every 10 seconds as well as periodical temperature measurements every 10 minutes. Furthermore, periodic UDP requests to port 123 were generated to simulate standard NTP time synchronization. 
+
+For the \textbf{Smart Camera}, a continuous stream of background UDP traffic was generated using the \texttt{iperf} utility, to accurately simulate a live, outbound video feed. Additionally, synthetic TLS handshakes were periodically executed against TCP port 443 to represent secure cloud telemetry check-ins. The smart camera also performs periodic UDP requests to port 123 to simulate standard NTP time synchronization. 
+
+Following the conclusion of the Mininet simulation, the resulting PCAP file of each scenario was processed using Zeek. Because the simulated payloads are encrypted, Deep Packet Inspection (DPI) has been discarded. Instead, Zeek successfully parsed the capture into structured metadata logs, specifically generating a \texttt{conn.log} (detailing connection states, bytes transferred, and durations) and a \texttt{dns.log} (documenting the plaintext domain resolution requests).
+
+Finally, all the extracted metadata from all experimental runs underwent a comparative behavioural analysis. By comparing network features such as Inter Arrival Times (IAT), flow durations, and volumetric byte transfers with the baseline fingerprints of the devices. The comparison of the attack based metrics together with the baseline allows drawing the definitive conclusions regarding the viability of passive IoT network forensics. 
+
+\input{Chapters/Experiments/scenario1.tex}
+\input{Chapters/Experiments/scenario2.tex}
+\input{Chapters/Experiments/scenario3.tex}
+\input{Chapters/Experiments/scenario4.tex}
+

@@ -1,0 +1,132 @@
+\documentclass[11pt, a4paper]{article}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[margin=2cm, top=2cm, includefoot]{geometry}
+\usepackage{amsmath} % Fractions
+\usepackage{amssymb}
+\usepackage{array} % Arrays
+\usepackage[font=small]{caption} % Define the captions style
+\captionsetup[table]{skip=15pt}
+\usepackage{cite}
+\usepackage{enumitem} % Style itemize
+\usepackage{fancyhdr} % Define the style of pages
+\usepackage{float}
+\usepackage{graphicx} % Images
+\usepackage{geometry}
+\usepackage{helvet} % Typography
+\usepackage[hidelinks]{hyperref} % Hyperlinks
+\usepackage{longtable}% Tables
+\usepackage{ltablex} % Enables longtable + tabularx features
+\keepXColumns % Keeps X columns functioning in longtable
+\usepackage{parskip} % Tabulation in the document
+\usepackage{url} % URLs
+\usepackage[table]{xcolor} % Color
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning}
+\usepackage[margin=2cm, top=2cm, includefoot]{geometry}
+
+\usepackage{tabularx}    % For flexible-width tables
+\usepackage{booktabs}    % For better looking tables (toprule, midrule, bottomrule)
+
+
+\renewcommand{\familydefault}{\sfdefault}
+\graphicspath{ {./Images/} }
+\captionsetup{font=footnotesize}
+\newcolumntype{M}[1]{>{\centering\arraybackslash}m{#1}}
+
+% URL Style
+\hypersetup{
+	colorlinks=false,
+	linkcolor=black,
+	filecolor=magenta,      
+	urlcolor=blue
+}
+
+% Solve widows and orphans
+\widowpenalty=10000
+\clubpenalty=10000
+\raggedbottom
+
+% Coding inclusions
+\usepackage{listings}
+
+% Define custom colors for the code blocks
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+
+% Setup the style for the listings package
+\lstdefinestyle{mystyle}{
+	backgroundcolor=\color{backcolour},   
+	commentstyle=\color{codegreen},
+	keywordstyle=\color{magenta},
+	numberstyle=\tiny\color{codegray},
+	stringstyle=\color{codepurple},
+	basicstyle=\ttfamily\footnotesize,
+	breakatwhitespace=false,         
+	breaklines=true,                 
+	captionpos=b,                    
+	keepspaces=true,                 
+	numbers=left,                    
+	numbersep=5pt,                  
+	showspaces=false,                
+	showstringspaces=false,
+	showtabs=false,                  
+	tabsize=4
+}
+\lstset{style=mystyle}
+
+\usepackage{tcolorbox}
+
+% Define the custom terminal box style
+\newtcolorbox{terminalbox}{
+	colback=black!85!white, % Dark grey/black background
+	coltext=white!95!black, % Off-white text
+	colframe=black,         % Black border
+	boxrule=0.5pt,
+	arc=4pt,                % Rounded corners
+	fontupper=\ttfamily\footnotesize, % Monospace font
+	left=5pt, right=5pt, top=5pt, bottom=5pt
+}
+
+
+% Document beginning 
+\begin{document}
+	\thispagestyle{empty}
+	\input{Chapters/cover}
+	\clearpage
+	\pagenumbering{arabic}
+	\tableofcontents
+	\clearpage
+	\listoffigures
+	\vspace*{0.5cm}
+	\listoftables
+	\clearpage
+
+	% Theory
+    \input{Chapters/introduction}
+    \input{Chapters/theory}
+    \clearpage
+    
+    % Experiments
+    \input{Chapters/setup}
+    \input{Chapters/execution}
+    \clearpage
+    
+    % Conclusions
+    \input{Chapters/conclusions}
+    \clearpage
+    
+    \begin{comment}
+	    % Annexes
+	    \appendix 
+	    \clearpage
+	    \input{Annexes/scenario1}
+	 \end{comment}
+
+    % Bibliography
+    \bibliographystyle{unsrt}
+    \bibliography{bibliography} 
+	
+\end{document}

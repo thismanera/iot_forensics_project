@@ -1,4 +1,4 @@
-\subsection{Scenario 3: Unauthorized State Chanfe and Data Exfiltration}
+\subsection{Scenario 3: Unauthorized State Change and Data Exfiltration}
 
 \subsubsection{Introduction and Objectives}
 Scenario 3 advances the adversarial narrative estblished in the previous scenario from initial network compromise to post-exploitation, focusing specifically on data exfiltration and stealthy Command and Control (C2) communication. In this phase, the previously compromised Smart Camera is manipulated by the internal attacker node (\texttt{10.0.0.3}) to completely bypass its authorized constraints. To capture this dynamic, a new external adversarial (\texttt{203.0.113.5}) is introduced to act as the destination for the stolen data. The primary objective is to measure and document how post-exploitation routing anomalies and application-layer manipulations deviate from the Scenario 1 control baseline. The scenario goals in detail are the following:
@@ -31,47 +31,54 @@ The same steps of \ref{evidence_integrity} have been followed to guarantee the i
 
 \paragraph{MUD Profile Validation}\mbox{}\\
 
-The primary objective of the baseline scenario analysis is to verify that the simulated IoT devices adhered strictly to their programmed MUD profiles during the simulation execution. By cross-referencing the theoretical behavioral parameters against the empirical Zeek metadata, the operational integrity of the smart home topology can be definitively proven.
+The first step is to compare again the expected baseline behaviour to the observed empirical results with the objectivo to detect attacker activity. 
 
-The following table compares the expected flows versus the empirical flows. As it can be observed, since it is the baseline scenario, a 100\% accuracy is achieved.
-
-\begin{table}[htbp]
+\begin{table}[H]
 	\centering
 	\renewcommand{\arraystretch}{1.2}
+	% Resizebox forces the table to perfectly fit the text width of your page
 	\resizebox{\textwidth}{!}{%
 		\begin{tabular}{@{}l c c l@{}}
 			\toprule
 			\textbf{Traffic Classification Profile} & \textbf{Expected} & \textbf{Empirical} & \textbf{Status / Delta} \\ 
 			\midrule
 			\multicolumn{4}{@{}l}{\textbf{Authorized IoT Services}} \\
-			DNS Queries (UDP/53) & 42 & 42 & $\checkmark$ Baseline Match \\
 			NTP Synchronization (UDP/123) & 6 & 6 & $\checkmark$ Baseline Match \\
 			MQTT Keep-Alives (TCP/8883) & 121 & 121 & $\checkmark$ Baseline Match \\
 			MQTT Telemetry Payloads (TCP/8883) & 5 & 5 & $\checkmark$ Baseline Match \\
-			Video Feed Stream (UDP/50005) & 1 & 1 & $\checkmark$ Baseline Match \\
+			Video Feed Stream (to Gateway/50005) & 1 & 1 & $\checkmark$ Terminated Early \\
 			TLS Cloud Telemetry (TCP/443) & 5 & 5 & $\checkmark$ Baseline Match \\
 			\addlinespace
-			\multicolumn{4}{@{}l}{\textbf{Adversarial Activity (10.0.0.3)}} \\
-			Network Reconnaissance & 0 & 5,820 & $\times$ Attack Detected \\
-			Credential Brute-Force & 0 & 214 & $\times$ Attack Detected \\
-			Configuration Payload Injection & 0 & 12 & $\times$ Attack Detected \\
+			\multicolumn{4}{@{}l}{\textbf{Adversarial \& Post-Exploitation Activity}} \\
+			DNS Queries (UDP/53) & 42 & 57 & $\times$ Hijacked C2 Polling (+15) \\
+			Attacker Trigger Payload (TCP/443) & 0 & 1 & $\times$ Compromise Event \\
+			UDP Data Exfiltration (to Rogue/443) & 0 & 1 & $\times$ Egress MUD Violation \\
+			Zeek QUIC Protocol Anomalies & 0 & 1 & $\times$ Masquerading Detected \\
+			\addlinespace
+			\multicolumn{4}{@{}l}{\textbf{Environmental Noise / Infrastructure}} \\
+			Background ICMP \& Packet Filter Notes & 0 & 2 & $\sim$ Minor Hypervisor Noise \\
 			\midrule
-			\textbf{Total Connection Flows} & \textbf{180} & \textbf{6,227} & \textbf{3,459\% Volumetric Spike} \\
+			\textbf{Total Connection Flows} & \textbf{180} & \textbf{199} & \textbf{Stealth Profile (+10.5\%)} \\
 			\bottomrule
 		\end{tabular}%
 	}
-	\caption{Scenario 2: Comparative Traffic Breakdown (Authorized vs. Adversarial)}
-	\label{tab:scenario2_traffic}
+	\caption{Scenario 3: Comparative Traffic Breakdown (Stealth Exfiltration \& C2 Routing)}
+	\label{tab:scenario3_traffic}
 \end{table}
 
-\textbf{As expected, attacker activity has been registered.} The empirical data is characterized by a massive volumetric surge, contributing the overwhelming majority of the 6,046 attacker-involved connections. Specially, because the scanner indiscriminately enumerates port ranges across the \texttt{10.0.0.0/24} architecture, causing an aggregate network density of a 3.459\% volumetric spike. 
+\textbf{As expected, attacker activity has been registered, though characterized by extreme stealth.} In contrast to the 3,459\% spike observed in Scenario 2, the data exfiltration attack generated only a 10.5\% volumetric increase (199 total connections). Because the attacker utilized a single TCP trigger payload and maintained the camera's baseline DNS polling frequency, the aggregate network density failed to trigger standard volumetric thresholds. 
 
-This massive structural deviation proves that while legitimate device operations continue to execute in the background, they are effectively buried under a high-density noise floor during an active reconnaissance campaign. This provides an undeniable, quantifiable signature for anomaly detection engines.
+This minimal structural deviation proves that while legitimate device operations continue, sophisticated post-exploitation tactics can seamlessly blend into the authorized traffic baseline. This provides possible justification for application aware security engines: without analyzing the deep packet metadata (such as port 443 protocol masquerading and DNS domain anomalies), the exfiltration stream can remain functionally invisible to traditional network monitors.
 
-\paragraph{Camera Behaviour}\mbox{}\\
-The observed activity from the Smart Camera matches the MUD, since the attack does not target its bandwidth or other messages. Basically, it tries to perform a brute force attack. 
+\paragraph{Camera Behaviour: Exfiltration \& Port Masquerading}\mbox{}\\
+The observed transmission behavior of the Smart Camera (Figure \ref{fig:camera_exfil}) highlights the critical danger of post-exploitation data exfiltration. At a macro volumetric level, the camera's total outbound throughput does not change, avoiding the asymmetric throughput anomalies that trigger basic firewalls. 
 
-The only difference is the existence of 12 messages sent from the attacker to the camera after apparently successfully logging in. This does not change the camera behaviour as a transmitter since the same proportion of outbound and inbound messages is kept. Contrary to what was expected, the asymmetric throughput did not happen. However, in another scenario, an attacker could upload malware or any other type of data to take control of the device. 
+Instead, the anomaly is entirely topological. The graph clearly highlights the operational shift at $t=300$ (05:00). Following the attacker's trigger, the camera completely ceases its authorized UDP transmission to the local Gateway on port 50005. Immediately, an equivalent volume of high-density UDP traffic is spun up and redirected to the external rogue cloud infrastructure. By pushing this exfiltration stream through port 443, the attacker successfully camouflages the hijacked video feed, violating the device's zero-trust MUD profile without alerting pure bandwidth-threshold monitors.
+
+\paragraph{DNS Resolution and C2 Polling}\mbox{}\\
+In addition to the port masquerading, the attack successfully altered the device's domain name resolution behavior. The empirical data recorded a total of 57 DNS queries, exceeding the zero-trust baseline expectation by 15 requests. 
+
+This numerical deviation maps precisely to the attack timeline. Following the compromise at the 5-minute mark, the camera began resolving an unauthorized Command and Control (C2) domain alongside its standard operations. By executing these malicious queries at a steady 60-second interval over the remaining 15 minutes of the capture, the attacker generated exactly 15 anomalous DNS requests. This can highlight a possible vulnerability since without application-layer visibility into the specific queried domains, the device's lateral connection to the adversarial infrastructure remains entirely hidden.
 
 \paragraph{Thermostat Behaviour}\mbox{}\\
 The Smart Thermostat sees no changes in behaviour since it is not the target of the attack.

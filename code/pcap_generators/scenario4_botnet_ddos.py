@@ -42,7 +42,9 @@ DNS_INTERVAL         = 60
 TLS_INTERVAL         = 300          
 CAPTURE_GRACE_SEC    = 3            
 CLOUD_IP             = "10.0.0.254" 
-VICTIM_IP            = "192.168.1.100"  # External victim for DDoS attack
+ROUTER_EXT_IP        = "203.0.113.1"    # Router IP for external subnet
+C2_IP                = "203.0.113.10"   # External C2 server
+VICTIM_IP            = "203.0.113.99"   # External victim for DDoS attack
 C2_DOMAIN            = "c2.botnet.com"  # Malicious C2 domain
 C2_PORT              = 6667              # IRC botnet port
 UDP_BANDWIDTH        = "4000K"           # Normal camera bandwidth: 500KB/s
@@ -94,20 +96,35 @@ def build_topology():
     thermostat = net.addHost("thermostat", ip="10.0.0.2/24", mac="00:00:00:00:00:02")
     attacker   = net.addHost("attacker",   ip="10.0.0.3/24", mac="00:00:00:00:00:03")
     cloud      = net.addHost("cloud",      ip="10.0.0.254/24", mac="00:00:00:00:00:FF")
-    victim     = net.addHost("victim",     ip="192.168.1.100/24", mac="00:00:00:00:00:77") 
+    c2         = net.addHost("c2",         ip="203.0.113.10/24", mac="00:00:00:00:00:88")
+    victim     = net.addHost("victim",     ip="203.0.113.99/24", mac="00:00:00:00:00:77")
 
     info("*** Creating links\n")
     net.addLink(camera,     gateway)   
     net.addLink(thermostat, gateway)   
     net.addLink(attacker,   gateway)
     net.addLink(cloud,      gateway)
+    net.addLink(c2,         gateway)
     net.addLink(victim,     gateway)
 
     info("*** Starting network\n")
     net.start()
+
+    # Configure cloud as router between 10.0.0.0/24 and 203.0.113.0/24
+    cloud.cmd(f"ip addr add {ROUTER_EXT_IP}/24 dev cloud-eth0")
+    cloud.cmd("sysctl -w net.ipv4.ip_forward=1 > /dev/null")
+
+    # Route external subnet via cloud
+    for host in (camera, thermostat, attacker):
+        host.cmd(f"ip route add 203.0.113.0/24 via {CLOUD_IP}")
+
+    # Route internal subnet from external hosts via cloud
+    for host in (c2, victim):
+        host.cmd(f"ip route add 10.0.0.0/24 via {ROUTER_EXT_IP}")
+
     net.pingAll()
 
-    return net, gateway, camera, thermostat, attacker, cloud, victim
+    return net, gateway, camera, thermostat, attacker, cloud, c2, victim
 
 
 # ---------------------------------------------------------------------------
@@ -120,7 +137,7 @@ def start_cloud_listeners(cloud):
         f"dnsmasq -k -p {DNS_PORT} --listen-address={CLOUD_IP} "
         f"--address=/api.smartcamera.com/{CLOUD_IP} "
         f"--address=/mqtt.smartthermostat.com/10.0.0.2 "
-        f"--address=/{C2_DOMAIN}/{CLOUD_IP} "
+        f"--address=/{C2_DOMAIN}/{C2_IP} "
         f"> /dev/null 2>&1 &"
     )
     cloud.cmd(dns_cmd)
@@ -128,9 +145,6 @@ def start_cloud_listeners(cloud):
     cloud.cmd(f"nc -k -l {TLS_PORT} > /dev/null 2>&1 &")
     
     cloud.cmd(f"python3 -c 'import socket, time; s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM); s.bind((\"\", {NTP_PORT})); time.sleep(99999)' &")
-    
-    # Start TCP listener on C2 port (6667) to receive C2 connections
-    cloud.cmd(f"nc -k -l {C2_PORT} > /dev/null 2>&1 &")
     
     # Use bash redirection instead of --logfile
     cloud.cmd(
@@ -141,9 +155,15 @@ def start_cloud_listeners(cloud):
     time.sleep(2)
 
 
+def start_c2_listeners(c2):
+    """Start TCP listener on C2 to receive bot check-ins"""
+    info("*** [c2] Starting TCP listener for C2 check-ins\n")
+    c2.cmd(f"nc -k -l {C2_PORT} > /dev/null 2>&1 &")
+
+
 def start_victim_listeners(victim):
     """Start UDP listener on victim to receive DDoS traffic"""
-    info("*** [victim] Starting UDP listener on port 53 (DNS) to receive DDoS traffic\n")
+    info("*** [victim] Starting UDP listener on port 53 to receive DDoS traffic\n")
     victim.cmd(
         f"python3 -c 'import socket, time; s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM); "
         f"s.bind((\"0.0.0.0\", {DNS_PORT})); time.sleep(99999)' &"
@@ -245,7 +265,7 @@ def launch_tcpdump(pcap_path: str):
         "-i", "any",            
         "-U",                   
         "-w", "-",              
-        "net", "10.0.0.0/24", "or", "net", "192.168.1.0/24"
+        "net", "10.0.0.0/24", "or", "net", "203.0.113.0/24"
     ]
     
     errlog = f"/tmp/tcpdump_{os.path.basename(pcap_path)}.log"
@@ -316,11 +336,12 @@ def run_scenario(args):
     info(" Scenario 4 — Botnet DDoS Attack\n")
     info("=" * 70 + "\n")
     
-    net, gateway, camera, thermostat, attacker, cloud, victim = build_topology()
+    net, gateway, camera, thermostat, attacker, cloud, c2, victim = build_topology()
     tcpdump_proc, pcap_file_obj = launch_tcpdump(args.pcap)
     
     info("\n*** Starting baseline services (cloud listeners)\n")
     start_cloud_listeners(cloud)
+    start_c2_listeners(c2)
     start_victim_listeners(victim)
    
     # Start normal device activity
@@ -339,7 +360,7 @@ def run_scenario(args):
 
     # Schedule attack phases
     if args.duration > C2_TRIGGER_TIME:
-        start_c2_checkin(thermostat, CLOUD_IP, args.duration, C2_TRIGGER_TIME)
+        start_c2_checkin(thermostat, C2_IP, args.duration, C2_TRIGGER_TIME)
     
     if args.duration > LATERAL_TRIGGER_TIME:
         start_lateral_propagation(thermostat, args.duration, LATERAL_TRIGGER_TIME)

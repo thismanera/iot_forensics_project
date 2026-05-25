@@ -121,3 +121,55 @@ The following four-phased pipeline was designed to reconstruct device behaviour 
 	\item \textbf{Phase 4: Behavioral Reconstruction and Anomaly Detection (Analysis - Part II):} 
 	The final phase involves the forensic deduction and timeline reconstruction. For Scenario 1, the normalized metrics are evaluated to establish the statistical mean and variance of the devices' normal operational states ("Ground Truth"). For Scenarios 2, 3, and 4, the extracted features are cross-examined against this established baseline. By identifying statistically significant deviations—such as the dense temporal clustering of rejected connections, volumetric spikes in outbound data, or unauthorized protocol utilization—the exact timestamp of the network compromise is identified, allowing for a chronological reconstruction of the attacker's actions.
 \end{enumerate}
+
+The four phases are better represented in this diagram: \newline
+
+\begin{figure}[H]
+	\centering
+	% Define the styles for the boxes and arrows
+	\tikzset{
+		phasebox/.style={
+			rectangle, 
+			rounded corners, 
+			minimum width=6cm, 
+			minimum height=1.5cm, 
+			text centered, 
+			draw=black, 
+			fill=blue!5, 
+			thick, 
+			text width=5.5cm
+		},
+		arrow/.style={
+			thick,
+			->,
+			>=stealth
+		},
+		annotation/.style={
+			text width=6cm,
+			align=left,
+			font=\small\itshape
+		}
+	}
+	
+	\begin{tikzpicture}[node distance=2.5cm and 1cm]
+		
+		% The 4 Phases
+		\node (phase1) [phasebox] {\textbf{Phase 1: Collection} \\ Evidence Integrity \& Preservation};
+		\node (phase2) [phasebox, below=of phase1] {\textbf{Phase 2: Examination} \\ Network Feature Extraction};
+		\node (phase3) [phasebox, below=of phase2] {\textbf{Phase 3: Analysis I} \\ Data Normalization \& Filtering};
+		\node (phase4) [phasebox, below=of phase3] {\textbf{Phase 4: Analysis II} \\ Behavioral Reconstruction};
+		
+		% The Arrows connecting the phases
+		\draw [arrow] (phase1) -- (phase2);
+		\draw [arrow] (phase2) -- (phase3);
+		\draw [arrow] (phase3) -- (phase4);
+		
+		% Annotations (What is passed between phases)
+		\node (note1) [annotation, right=of phase1, yshift=-1.25cm] {Mininet \texttt{.pcap} \& SHA-256 Hash};
+		\node (note2) [annotation, right=of phase2, yshift=-1.25cm] {Zeek Metadata (\texttt{conn.log}, \texttt{dns.log}, ...)};
+		\node (note3) [annotation, right=of phase3, yshift=-1.25cm] {Cleaned DataFrames \& Extracted Features};
+		
+	\end{tikzpicture}
+	\caption{The standardized 4-phase network forensic analysis pipeline applied to all experimental scenarios.}
+	\label{fig:forensic_pipeline}
+\end{figure}

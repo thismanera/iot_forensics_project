@@ -73,7 +73,7 @@ pip3 install pandas jupyter matplotlib seaborn
 
 ```
 
-### Open vSwitch Controller Fix (Ubuntu 20.04+)
+### 2. Open vSwitch Controller Fix (Ubuntu 20.04+)
 
 Modern Ubuntu repositories replaced the legacy OVS controller. You must symlink the new test controller so Mininet can find it:
 
@@ -82,7 +82,7 @@ sudo ln -s /usr/bin/ovs-testcontroller /usr/bin/ovs-controller
 
 ```
 
-### Running the Simulations
+### 3. Running the Simulations
 
 To prevent out-of-memory (OOM) errors and forensic timing distortion (IAT corruption), experiments must be run sequentially.
 You can run the automated bash script to execute the entire kill chain:

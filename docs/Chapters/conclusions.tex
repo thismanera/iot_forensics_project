@@ -1,3 +1,42 @@
 \section{Conclusions}
 
+The primary objective of this research projct was to address the existing limitations of traditional digital forensics in IoT environments by developing a robust, passive network-based methodology for behavioral reconstruction. Driven by the volatility of physical device memory, the reliance on proprietary hardware, and the widespread adoption of encryption, this project hypothesized that a device's physical state and malicious compromise could be definitively determined solely from encrypted network metadata. 
 
+By systematically evaluating a simulated smart home topology against a baseline of authorized Manufacturer Usage Description (MUD) behaviours and three escalating adversarial scenarios, the research successfully bridged the semantic gap between raw network traffic and physical device actions.
+
+\subsection{Fulfillment of the Research Questions}
+
+The findings of this project directly answer the core research questions established at the onset of the study:
+
+\begin{enumerate}
+	\item \textbf{Can IoT device activity be inferred solely from network traffic?} \\
+	The experimental results definitively prove that device activity can be inferred without payload decryption or physical device access. By establishing a rigid temporal and volumetric baseline (Scenario 1), any deviation of it was successfully isolated and identified using purely contextual flow metadata. Whether if the attack was a high-frequency credential brute force attack (Scenario 2) or the weaponization of a thermostat into a botnet (Scenario 4).
+	
+	\item \textbf{Which network features best identify device behavior?} \\
+	The research identified that the severity and type of an attack dictate the required forensic feature. For noisy, automated attacks (Reconnaissance and DDoS), \textbf{global flow density} and \textbf{TCP connection state distributions} (specifically \texttt{SF} and \texttt{REJ} flags) served as immediate, high-fidelity tripwires. Conversely, for advanced persistent threats (Stealth Exfiltration), volumetric metrics failed entirely. Detecting these attacks required application-layer metadata, specifically \textbf{DNS query frequency} (identifying C2 domain polling) and \textbf{protocol-to-port masquerading} (detecting UDP streams hiding over TCP/443).
+	
+	\item \textbf{How accurately can forensic timelines be reconstructed?} \\
+	The methodology demonstrated millisecond accuracy in chronological timeline reconstruction. By mapping volumetric anomalies (e.g., the sudden 7.47 Mbps UDP flood) and structural anomalies (e.g., the abrupt cessation of authorized port 50005 traffic) back to the theoretical data flow models (NIST SP 800-183), the investigation successfully tracked the exact moment of initial payload execution, lateral propagation, and final data exfiltration.
+\end{enumerate}
+
+\subsection{Expectations vs. Empirical Reality: The Zero-Trust Paradox}
+
+The most critical finding of this study emerged from evaluating the effectiveness of the theoretical zero-trust architecture and NIST MUD profiles against active exploitation.
+
+\textbf{What was expected:} It was expected that implementing strict zero-trust network boundaries and MUD profiles would isolate compromised devices, preventing them from interacting with unauthorized internal nodes or external servers.
+
+\textbf{What was observed:} The architecture succeeded at \textit{ingress} containment but suffered a catastrophic failure at \textit{egress} containment. 
+
+During Scenario 2 and Scenario 4, the strict internal access control lists performed perfectly. When the attacker and the compromised device attempted to scan the local subnet, the target devices actively rejected the unauthorized requests, generating thousands of \texttt{REJ} states and successfully halting lateral propagation. 
+
+However, in Scenario 3 and Scenario 4, the compromised edge devices effortlessly bypassed the network perimeter to communicate with external Command and Control (C2) servers, exfiltrate data, and launch a global DDoS assault. Because edge devices require internet access to function, the perimeter firewall implicitly trusted their outbound connections. This exposes a severe vulnerability in current IoT network design: static MUD profiles are inherently trust-biased toward the internal endpoint. 
+
+Furthermore, the data debunked the assumption that all cyberattacks generate massive network noise. While the brute-force attack (Scenario 2) generated a massive 3,329\% spike in traffic, the data exfiltration attack (Scenario 3) generated a nearly invisible 10.5\% volumetric increase. The attacker successfully hijacked the camera's existing bandwidth, proving that modern IoT malware is designed to camouflage itself within the authorized volumetric baseline.
+
+\subsection{Contributions to the Field}
+
+This project contributes a validated, end-to-end framework for IoT network forensics. By moving away from Deep Packet Inspection (DPI) and relying on Zeek-extracted metadata, the methodology remains resilient against modern cryptographic standards like TLS 1.3 and DTLS. Additionally, this research provides a fully documented, open-source dataset of labeled PCAP files and Zeek logs representing both benign IoT MUD compliance and multi-stage botnet kill chains, which can be utilized by the academic community to train automated Intrusion Detection Systems (IDS).
+
+\subsection{Future Work}
+
+While the simulated Mininet environment provided a mathematically pristine testing ground, future research must validate these findings against physical hardware. Transitioning this methodology from virtualized emulators to commercial devices will introduce real-world proprietary background noise, allowing for the refinement of the feature extraction pipeline. 

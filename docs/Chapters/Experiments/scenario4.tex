@@ -29,9 +29,7 @@ The same steps of \ref{evidence_integrity} have been followed to guarantee the i
 
 \paragraph{MUD Profile Validation}\mbox{}\\
 
-The primary objective of the baseline scenario analysis is to verify that the simulated IoT devices adhered strictly to their programmed MUD profiles during the simulation execution. By cross-referencing the theoretical behavioral parameters against the empirical Zeek metadata, the operational integrity of the smart home topology can be definitively proven.
-
-The following table compares the expected flows versus the empirical flows. As it can be observed, since it is the baseline scenario, a 100\% accuracy is achieved.
+The first step is to compare again the expected baseline behaviour to the observed empirical results with the objectivo to detect attacker activity. 
 
 \begin{table}[H]
 	\centering
@@ -42,83 +40,108 @@ The following table compares the expected flows versus the empirical flows. As i
 			\textbf{Traffic Classification Profile} & \textbf{Expected} & \textbf{Empirical} & \textbf{Status / Delta} \\ 
 			\midrule
 			\multicolumn{4}{@{}l}{\textbf{Authorized IoT Services}} \\
-			Authorized DNS Queries (UDP/53) & 42 & 42 & $\checkmark$ Baseline Match \\
-			NTP Synchronization (UDP/123) & 6 & 6 & $\checkmark$ Baseline Match \\
-			MQTT Keep-Alives (TCP/8883) & 121 & 121 & $\checkmark$ Baseline Match \\
-			MQTT Telemetry Payloads (TCP/8883) & 5 & 5 & $\checkmark$ Baseline Match \\
+			Authorized DNS Queries (UDP/53) & 31 & 31 & $\checkmark$ Baseline Match \\
+			NTP Synchronization (UDP/123) & 5 & 5 & $\checkmark$ Baseline Match \\
+			MQTT Keep-Alives (TCP/8883) & 47 & 47 & $\checkmark$ Baseline Match \\
+			MQTT Telemetry Payloads (TCP/8883) & 2 & 2 & $\checkmark$ Baseline Match \\
+			Camera Video Feed (UDP/50005) & 1 & 1 & $\checkmark$ Baseline Match \\
+			Camera TLS Telemetry (TCP/443) & 5 & 5 & $\checkmark$ Baseline Match \\
 			\addlinespace
 			\multicolumn{4}{@{}l}{\textbf{Adversarial \& Botnet Activity}} \\
-			Attacker Trigger Payload & 0 & 1 & $\times$ Infection Event \\
-			Malicious C2 DNS Lookups & 0 & 2 & $\times$ Unauthorized Domain Pivot \\
-			C2 Connections (TCP/6667) & 0 & 2 & $\times$ Persistent Link (\texttt{RSTR}/\texttt{S3}) \\
-			Lateral Scan Flows (TCP/23, 80) & 0 & 172 & $\times$ Internal Propagation (172 \texttt{REJ}) \\
-			Volumetric UDP Flood (to Victim) & 0 & 0 & \textbf{!} Execution Null / Blocked \\
+			Malicious C2 DNS Lookups (\texttt{c2.botnet.com}) & 0 & 3 & $\times$ Botnet Domain Query \\
+			C2 Connections (TCP/6667) & 0 & 18 & $\times$ Persistent IRC Control Pipe \\
+			Lateral Scan Flows (\texttt{Thermostat} $\rightarrow$ Local) & 0 & 128 & $\times$ Subnet Scan (128 \texttt{REJ}) \\
+			Volumetric UDP Flood (\texttt{Thermostat} $\rightarrow$ Victim) & 0 & 1\tnote{*} & $\times$ Exfiltration / DDoS Assault \\
 			\addlinespace
 			\multicolumn{4}{@{}l}{\textbf{Environmental Noise / Infrastructure}} \\
-			Background Hypervisor Noise & 0 & 8 & $\sim$ Unclassified Residuals \\
+			Background ICMP Noise (\texttt{Gateway} $\rightarrow$ \texttt{Camera}) & 0 & 1 & $\sim$ Network Overhead \\
 			\midrule
-			\textbf{Total Connection Flows} & \textbf{174} & \textbf{359} & \textbf{Structural Disruption (+106\%)} \\
+			\textbf{Total Connection Flows} & \textbf{91} & \textbf{210} & \textbf{Structural Disruption (+130.8\%)} \\
 			\bottomrule
 		\end{tabular}%
 	}
-	\caption{Scenario 4: Comparative Traffic Breakdown (Thermostat Botnet Infection, C2 Polling, and Lateral Propagation)}
+	\caption{Scenario 4: Comparative Traffic Breakdown (Thermostat Conscription and 7.47 Mbps Volumetric DDoS Campaign)}
 	\label{tab:scenario4_traffic}
 \end{table}
 
-Table \ref{tab:scenario4_traffic} details the empirical macro statistics for the Scenario 4 botnet infection. The multi-phase nature of the attack can be extracted from this table, which shows the type of activities carried out by advanced persistent threats (APTs) within an IoT edge enviornment. 
+Table \ref{tab:scenario4_traffic} presents the empirical traffic profile for Scenario 4, tracking the operational transition of the Smart Thermostat from a low-power endpoint to an offensive botnet node. The data illustrates a severe multi-phase compromise that leaves structural indicators across multiple layers of the network stack. While authorized baseline services—such as the 47 MQTT keep-alives and 5 camera TLS flows—remained perfectly aligned with expected control values, adversarial deviations completely altered the environment's global topology.
 
-The Smart Thermostat maintained its authorized operations, exactly 121 MQTT keep-alives and 5 telemetry payloads were transmitted, masking the infection from basic health-monitoring heuristics. However, deep structural analysis exposes the weaponization of the device. The empirical capture registered an immediate application-layer anomaly via 2 unauthorized DNS lookups, seamlessly followed by the establishment of 2 persistent Command and Control (C2) connections on port 6667. 
+The structural metrics isolate three clear malicious phases following the initial compromise. First, the application-layer is compromised via 3 unauthorized C2 DNS resolutions targeting \texttt{c2.botnet.com}, immediately followed by 18 persistent TCP check-ins on port 6667, confirming active Command and Control conscription. Second, the breach of lateral zero-trust boundaries is mathematically verified by 128 local scan flows originating from the Thermostat. Because adjacent hosts rejected these unauthorized authentication attempts, 100\% of these connection attempts terminated with an explicit \texttt{REJ} state flag.
 
-The most evident structural disruption is observed during the lateral propagation phase. The compromised thermostat generated 172 anomalous flows targeting adjacent devices on ports 23 and 80. Unlike Scenario 2, where this noise originated from an external adversary, these originated directly from a trusted internal edge asset, signifying a catastrophic breakdown of the zero-trust lateral boundary. Since normally, this type of flow cannot be stopped or filtered by a firewall since they occur in the inside of the internal network and origin from a "trusted" node. 
-
-Notably, the empirical data registered zero UDP flood connections targeting the external DDoS victim. Forensically, this null metric suggests either a localized execution failure of the payload trigger at the $t=600$ boundary, or that the local network infrastructure actively dropped the spoofed volumetric packets before Zeek could log the outbound flow state. Regardless, the preliminary phases of the botnet kill chain—C2 check-in and internal propagation—were definitively proven.
+The most important aspect is the presence of a Volumetric UDP flood, which indicates the presence of a possible data exfiltration or DDoS assault as a botnet. 
 
 \paragraph{Camera Behaviour}\mbox{}\\
 The observed activity from the Smart Camera matches the MUD, since the attack does not target its bandwidth or other messages.
 
 \paragraph{Thermostat Behaviour}\mbox{}\\
-The Smart Thermostat sees no changes in behaviour
-
-\paragraph{Other Metrics}\mbox{}\\
-
-As illustrated in Figure \ref{fig:networkflowdensity}, the empirical flow density exhibits three distinct volumetric anomalies. Rather than a random distribution of noise, these deviations perfectly map to the chronological execution of the adversarial kill chain:
-
-\begin{itemize}
-	\item \textbf{Phase 1: The Reconnaissance Surge (Initial Spike):} The massive, immediate vertical spike observed at the beginning of the timeline represents the automated subnet and port sweep. Because network scanners operate asynchronously—flooding the target with thousands of simultaneous \texttt{SYN} probes to enumerate open ports—this phase generates an explosive but brief density maximum before the scanner concludes its mapping phase.
-	
-	\item \textbf{Phase 2: The Brute-Force Plateau (Sustained Volatility):} Following the initial scan, the graph does not return to the authorized baseline of $\sim$8 flows per minute. Instead, it transitions into a sustained plateau. This elevated constant peak represents the credential brute-force attack against the Smart Camera's TLS control channel (TCP port 443). The script executes rapid, iterative login attempts, generating a persistent high-density noise floor that persists for the majority of the attack window.
-	
-	\item \textbf{Phase 3: The Payload Injection (Terminal Anomaly):} Near the conclusion of the capture window, the brute-force plateau ceases, followed by a final, microscopic spike of exactly 12 flows. Forensically, this is the most critical metric on the timeline: it represents the moment of successful authentication and the subsequent injection of the malicious configuration payload, effectively altering the edge device's operational state just before the attacker terminates the session.
-\end{itemize}
+The temporal stability of the environment during the pre-infection phase ($t=0$ to $t=300$ seconds) is verified by the Smart Thermostat MQTT Keep-Alive Inter-Arrival Time (IAT) distribution, illustrated in Figure \ref{fig:thermostat_iat_baseline}. During this initial observation window, the device exhibits a highly deterministic, mathematically rigid operational profile. The empirical data demonstrates an uncorrupted telemetry sequence where every single MQTT keep-alive pulse aligns perfectly with time of exactly 10.00 seconds, as expected. In addition, the telemtry size of packets has been seen unaltered during the whole sequence since the attacker does not target this behaviour of the thermostat.
 
 \begin{figure}[H]
 	\centering
-	\includegraphics[width=0.9\linewidth]{../figures/scenario2/network_flow_density}
-	\caption{Network Flow Density (Scenario2).}
-	\label{fig:networkflowdensity}
+	\includegraphics[width=0.9\linewidth]{../figures/scenario4/thermostat_iat_distribution}
+	\caption{Scenario 4 Normal Phase: IAT distribution during the first 300s of experiment.}
+	\label{fig:thermostat_iat_baseline}
 \end{figure}
 
-The TCP connection state distribution, also provides clear structural proof of the attack's impact on the network. As seen in Scenario 1, In a stable baseline, TCP flows primarily resolve with an \texttt{SF} (Normal) state flag, indicating successful connections and clean teardowns. While authorized IoT traffic continued normally during the attack (registering 133 \texttt{SF} flows), it was completely eclipsed by a massive surge in anomalous activity. 
+ However, there are some indicators that show evidence of the existence of a possible botnet infection by the thermostat. First of all, the device performs 3 DNS requests to a domain \texttt{c2.botnet.com} which is not in its MUD. This domain is from the C2, which is used to coordinate the infection and attack. Then, immediately following these unauthorized domain resolutions, the thermostat initiates a series of outbound TCP connections on destination port 6667. In network forensics, this specific port is highly significant as it is the default standard for Internet Relay Chat (IRC) communications. This protocol is used by modern IoT modern families due to its highly efficient asynchronous command-broadcastign architecture. These 18 check-ins represent active beaconing intervals where the compromised smart thermostat polls the remote IRC infrastructure to receive operational instructions from the botmaster, establishing absolute empirical proof of an ongoing Command and Control (C2) session that completely violates the device's operational baseline.
+ 
+ Following the successful establishment of the Command and Control channel, the compromised Smart Thermostat transitions from a passive beacon to an active insider threat. This behavioral shift is exemplified in the Lateral Scan Report, which documents a total of 128 anomalous internal flows originating from the node (\texttt{10.0.0.2}) and propagating across the local subnet. 
+ 
+ \begin{figure}[H]
+ 	\centering
+ 	\includegraphics[width=0.9\linewidth]{../../figures/scenario4/lateral_scan_density.png}
+ 	\caption{Scenario 4 Internal Propagation Phase: Temporal flow density of the 128 unauthorized lateral scanning attempts originating from the infected Smart Thermostat.}
+ 	\label{fig:lateral_scan_density}
+ \end{figure}
+ 
+ An extended examination of the transport-layer state distribution reveals that 100\% of these 128 malicious flows terminated in a \texttt{REJ} (Rejected) status, with zero instances of completed handshakes (\texttt{SF}) or unanswered stealth attempts (\texttt{S0}). This absolute uniformity carries two critical forensic implications. 
+ 
+ This fact confirms that the botnet malware was executing an aggressive, automated horizontal scan to locate adjacent network endpoints. This phase creates a massive behavioural anomaly, as a consumer IoT thermostat possesses no legitimate operational reason to broadcast hundreds of connection requests to neighbouring local hosts.
+ 
+ The culmination of the Scenario 4 botnet infection is the execution of a volumetric Distributed Denial of Service (DDoS) assault, directed at the external target infrastructure (\texttt{203.0.113.99}). Figure \ref{fig:thermostat_udp_throughput} visually maps the temporal throughput of the compromised Smart Thermostat, explicitly demarcating the transition from localized reconnaissance to active weaponization.
+ 
+ \begin{figure}[H]
+ 	\centering
+ 	\includegraphics[width=0.9\linewidth]{../../figures/scenario4/thermostat_udp_throughput.png}
+ 	\caption{Scenario 4 Volumetric Assault Phase: Sustained UDP flood throughput originating from the compromised thermostat.}
+ 	\label{fig:thermostat_udp_throughput}
+ \end{figure}
+ 
+ 
+\begin{figure}
+	\centering
+	\includegraphics[width=0.9\linewidth]{../figures/scenario4/network_flow_density}
+	\caption{Scenario 4: Network flow density, where a peak can be observed during the network scan.}
+	\label{fig:networkflowdensity4}
+\end{figure}
+ 
+ During the first half of the capture window, the UDP throughput remains flat at zero, corroborating the established baseline where the device communicates exclusively via TCP-based MQTT keep-alives, following the established MUD behaviour. However, following the C2 check-in and internal lateral scanning phases, the botnet master issues the attack directive. At approximately the 09:30 mark, the graph illustrates a violent architectural deviation, the thermostat begins generating spoofed UDP datagrams. The attack rapidly reaches a sustained throughput, pushing over 100 Megabytes per minute.
 
-Specifically, Zeek recorded 6,041 flows terminating in a \texttt{REJ} (Rejected) state. This flag is logged when a target actively refuses a connection attempt via a TCP Reset (RST) packet. This spike in rejected handshakes is the direct footprint of the attacker (\texttt{10.0.0.3}) scanning the network. As the scanner flooded the IoT edge devices with \texttt{SYN} probes targeting closed ports, the devices continuously issued RST packets to block the unauthorized access. 
+\paragraph{Other Metrics}\mbox{}\\
+
+
+The TCP connection state distribution also provides clear structural proof of the attack's impact on the network. As seen in Scenario 1, in a stable baseline, TCP flows primarily resolve with an SF (Normal) state flag, indicating successful connections and clean teardowns. While authorized IoT traffic continued normally during the attack (registering 39 \texttt{SF} flows), it was completely eclipsed by a surge in anomalous activity.
+
+Specifically, Zeek recorded 128 flows terminating in a \texttt{REJ} (Rejected) state. This spike in rejected handshakes is the direct footprint of the attacker (\texttt{10.0.0.3}) scanning the network. As the scanner flooded the IoT edge devices with \texttt{SYN} probes targeting closed ports, the devices continuously issued RST packets to block the unauthorized access.
 
 Consequently, this sudden inversion of the \texttt{SF}-to-\texttt{REJ} ratio serves as an ideal, automated tripwire for detecting an active internal breach.
 
 \begin{figure}[H]
 	\centering
-	\includegraphics[width=0.9\linewidth]{../../iot_forensics_project/figures/scenario2/tcp_connection_states}
-	\caption{TCP Connection State Distribution (Scenario 2).}
-	\label{fig:tcpconnectionstates}
+	\includegraphics[width=0.9\linewidth]{../../iot_forensics_project/figures/scenario4/tcp_connection_states}
+	\caption{Scenario 4: TCP Connection State Distribution.}
+	\label{fig:tcpconnectionstates4}
 \end{figure}
 
-Finally, the interaction heatmaps is totally altered, in this scenario is exposing a network heavily saturated with unauthorized cross-node communications. The baseline has been broken by the attacker node which acts as the origin for all anomalous traffic. The matrix clearly distinguishes the broad network reconnaissance, evidenced by the 1,025 probes sent to both the Gateway and the Thermostat, from the targeted exploitation of the Smart Camera, which absorbed 3996 direct connections.
+
+Finally, the interaction heatmap is totally altered respect the normality. In this scenario, the baseline has been broken not by external probes, but by the compromised Smart Thermostat (\texttt{10.0.0.2}), which now acts as the active origin for the anomalous lateral traffic. The matrix clearly visualizes this internal propagation phase: the infected thermostat launches a horizontal sweep, distributing exactly 64 unauthorized connection attempts to the Smart Camera (\texttt{10.0.0.1}) and 64 attempts to the local Attacker node (\texttt{10.0.0.3}), corroborating the 128 rejected flows previously analyzed. This internal aggression occurs alongside expected baseline routing, such as the Camera's 30 authorized connections to the Gateway, perfectly illustrating how the compromised IoT endpoint camouflages its lateral botnet scanning amidst standard operational noise.
 
 
 \begin{figure}[H]
 	\centering
-	\includegraphics[width=0.9\linewidth]{../../iot_forensics_project/figures/scenario2/topology_traffic_matrix}
-	\caption{Empirical interaction heatmap detailing authorized internal network flows (Scenario 2).}
-	\label{fig:topologytrafficmatrix}
+	\includegraphics[width=0.9\linewidth]{../../iot_forensics_project/figures/scenario4/topology_traffic_matrix}
+	\caption{Scenario 4: Empirical interaction heatmap detailing authorized internal network flows.}
+	\label{fig:topologytrafficmatrix4}
 \end{figure}
 
 

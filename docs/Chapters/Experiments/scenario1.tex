@@ -34,7 +34,7 @@ To establish a mathematically verifiable chain of custody, a SHA-256 hash of the
 \begin{figure}[H]
 	\centering
 	\includegraphics[width=0.85\textwidth]{Images/experiments/terminal_hash_scenario1}
-	\caption{Terminal execution demonstrating the SHA-256 hashing and working copy verification.}
+	\caption{Scenario 1: Terminal execution demonstrating the SHA-256 hashing and working copy verification.}
 	\label{fig:hash_scenario1}
 \end{figure}
 	
@@ -47,7 +47,7 @@ Utilizing the \texttt{-C} directive to bypass virtualized checksum offloading er
 \begin{figure}[H]
 	\centering
 	\includegraphics[width=0.85\textwidth]{Images/experiments/zeek_scenario1}
-	\caption{Zeek log extraction of Scenario 1.}
+	\caption{Scenario 1: Zeek log extraction of Scenario 1.}
 	\label{fig:zeekscenario1}
 \end{figure}
 
@@ -99,19 +99,19 @@ For visualization purposes, the network bandwidth was recalculated from bits per
 \begin{figure}[H]
 	\centering
 	\includegraphics[width=0.9\linewidth]{../../iot_forensics_project/figures/scenario1/camera_volumetric_flow}
-	\caption{Smart Camera Bandwidth evolution over experiment time (Scenario 1).}
+	\caption{Scenario 1: Smart Camera Bandwidth evolution over experiment time.}
 	\label{fig:cameravolumetricflow}
 \end{figure}
 
 In addition, the camera directional byte ratio has been calculated. From all the traffic exchanged between the camera and the gateway, 99.9998\% of the traffic has been sent by camera, while the rest are responses from the gateway. This is normal since the camera must act as data flow transmitter.
 
 \paragraph{Thermostat IAT Keep Alives}\mbox{}\\
-The temporal delta between consecutive keep-alive messages was calculated to assess baseline stability. While the theoretical expected interval is strictly defined at 10.0 seconds, the empirical results demonstrated a near-perfect mean Inter-Arrival Time (IAT) of 10.0004 seconds. Furthermore, the calculated standard deviation of just 0.5078 seconds proves that the execution overhead of the virtualized environment introduces negligible variance to the device's automated reporting loop.
+The temporal delta between consecutive keep-alive messages was calculated to assess baseline stability. While the theoretical expected interval is strictly defined at 10.0 seconds, the empirical results demonstrated a near-perfect mean Inter-Arrival Time (IAT) of 10.0001 seconds. Furthermore, the calculated standard deviation of just 0.000449 seconds proves that the execution overhead of the virtualized environment introduces negligible variance to the device's automated reporting loop.
 
 \begin{figure}[H]
 	\centering
 	\includegraphics[width=0.9\linewidth]{../../iot_forensics_project/figures/scenario1/thermostat_iat_distribution}
-	\caption{IAT of Smart Thermostat Keep Alive messages (Scenario 1).}
+	\caption{Scenario 1: IAT of Smart Thermostat Keep Alive messages.}
 	\label{fig:thermostatiatdistribution}
 \end{figure}
 
@@ -123,8 +123,8 @@ A interaction heatmap has been developed to track and validate the expected comm
 \begin{figure}[H]
 	\centering
 	\includegraphics[width=0.9\linewidth]{../../iot_forensics_project/figures/scenario1/topology_traffic_matrix}
-	\caption{Empirical interaction heatmap detailing authorized internal network flows (Scenario 1).}
-	\label{fig:topologytrafficmatrix}
+	\caption{Scenario 1: Empirical interaction heatmap detailing authorized internal network flows.}
+	\label{fig:topologytrafficmatrix1}
 \end{figure}
 
 Finally, another interesting metric is to track the TCP connection state distribution. In a secure, uncompromised IoT network, TCP sessions must exhibit highly disciplined behavioral patterns. Legitimate devices connect to designated cloud endpoints, execute their application-layer handshakes, and terminate gracefully. Therefore, this baseline metric should be heavily dominated by SF (Normal connection establishment and termination) since all the network traffic flows have been programmed to start and end in the duration of the experiment.
@@ -134,8 +134,8 @@ As it can be observed all the connections are correctly finalized as expected.
 \begin{figure}[H]
 	\centering
 	\includegraphics[width=0.9\linewidth]{../../iot_forensics_project/figures/scenario1/tcp_connection_states}
-	\caption{TCP Connection State Distribution (Scenario 1).}
-	\label{fig:tcpconnectionstates}
+	\caption{Scenario 1: TCP Connection State Distribution.}
+	\label{fig:tcpconnectionstates1}
 \end{figure}
 
 

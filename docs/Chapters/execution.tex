@@ -33,22 +33,22 @@ Before summarizing the different scenario results, the hashes of each used evide
 			\textbf{Experimental Phase} & \textbf{Evidence File (PCAP)} & \textbf{SHA-256 Cryptographic Hash} & \textbf{Integrity} \\ 
 			\midrule
 			\multirow{2}{*}{Scenario 1: Baseline} 
-			& \texttt{originals/scenario1\_baseline.pcap} & \texttt{5bdafc9625da8411b30ef02eff45661e18d74ef5f14d73f117905d950c631b3c} & \multirow{2}{*}{$\checkmark$ Verified} \\
-			& \texttt{working\_copies/scenario1\_working\_copy.pcap} & \texttt{5bdafc9625da8411b30ef02eff45661e18d74ef5f14d73f117905d950c631b3c} & \\
+			& \texttt{originals/scenario1\_baseline.pcap} & \texttt{d6bf23c441bb69c46f89c87bb7e2f457baf4cac4f910372332722b228bd12936} & \multirow{2}{*}{$\checkmark$ Verified} \\
+			& \texttt{working\_copies/scenario1\_working\_copy.pcap} & \texttt{d6bf23c441bb69c46f89c87bb7e2f457baf4cac4f910372332722b228bd12936} & \\
 			\addlinespace
 			\multirow{2}{*}{Scenario 2: Recon \& Brute-Force} 
-			& \texttt{originals/scenario2\_recon\_bruteforce.pcap} & \texttt{a57e30fbea762eb29d232acd0a4e6549043599620b6e46bf5119191912fb507c} & \multirow{2}{*}{$\checkmark$ Verified} \\
-			& \texttt{working\_copies/scenario2\_working\_copy.pcap} & \texttt{a57e30fbea762eb29d232acd0a4e6549043599620b6e46bf5119191912fb507c} & \\
+			& \texttt{originals/scenario2\_recon\_bruteforce.pcap} & \texttt{a94fcc7c7ef145fcdbb1bc4f70134005703ca5cd38b3b440969f67ea03abd094} & \multirow{2}{*}{$\checkmark$ Verified} \\
+			& \texttt{working\_copies/scenario2\_working\_copy.pcap} & \texttt{a94fcc7c7ef145fcdbb1bc4f70134005703ca5cd38b3b440969f67ea03abd094} & \\
 			\addlinespace
 			\multirow{2}{*}{Scenario 3: Exfiltration} 
-			& \texttt{originals/scenario3\_exfiltration.pcap} & \texttt{d089034df4008024809cb1c24f28f2713cef30e201348bc911f7abd5576c218f} & \multirow{2}{*}{$\checkmark$ Verified} \\
-			& \texttt{working\_copies/scenario3\_working\_copy.pcap} & \texttt{d089034df4008024809cb1c24f28f2713cef30e201348bc911f7abd5576c218f} & \\
+			& \texttt{originals/scenario3\_exfiltration.pcap} & \texttt{c3fd72fa20c38d241cb089c866a5e27a24fe264f0a1d04a208de53c3d35b0c17} & \multirow{2}{*}{$\checkmark$ Verified} \\
+			& \texttt{working\_copies/scenario3\_working\_copy.pcap} & \texttt{c3fd72fa20c38d241cb089c866a5e27a24fe264f0a1d04a208de53c3d35b0c17} & \\
 			\addlinespace
 			\multirow{2}{*}{Scenario 4: Botnet DDoS} 
-			& \texttt{originals/scenario4\_botnet.pcap} & \texttt{97c5c14dac8286b118e02518f81ddb199bc2a403654ceb4ffbfcbbfa00f6d5f3} & \multirow{2}{*}{$\checkmark$ Verified} \\
-			& \texttt{working\_copies/scenario4\_working\_copy.pcap} & \texttt{97c5c14dac8286b118e02518f81ddb199bc2a403654ceb4ffbfcbbfa00f6d5f3} & \\
-			\multirow{2}{*}{Zip files} & \texttt{scenario.zip} & \texttt{8389815a6fc7722b62a396b51e485b2c677271de56f69f7a0e6b873dc8f4ebb6} & \multirow{2}{*}{$\checkmark$ Verified} \\
-			& \texttt{working\_scenarios.zip} & \texttt{811e3a2143eb1961e72e4e4e0ed655c4d8b2454739755eb855dceac27245af72} & \\
+			& \texttt{originals/scenario4\_botnet.pcap} & \texttt{0be2d975155a51dbbab00fb96301bb66d30fed5138694c5abfd7d6c3dec9de70} & \multirow{2}{*}{$\checkmark$ Verified} \\
+			& \texttt{working\_copies/scenario4\_working\_copy.pcap} & \texttt{0be2d975155a51dbbab00fb96301bb66d30fed5138694c5abfd7d6c3dec9de70} & \\
+			\multirow{2}{*}{Zip files} & \texttt{original\_scenarios.tar.xz} & \texttt{fb0fe531f28d635dd614bd2bb914f4ec87845acb55f6507be17b43f340caafb4} & \multirow{2}{*}{$\checkmark$ Verified} \\
+			& \texttt{working\_scenarios.tar.xz} & \texttt{7cd22d49fb7e893ee4865d4e6a0b39728541b884ea759dc17f4a7b0b0a86ecc5} & \\
 			\bottomrule
 		\end{tabular}%
 	}
@@ -60,4 +60,5 @@ Before summarizing the different scenario results, the hashes of each used evide
 \input{Chapters/Experiments/scenario2.tex}
 \input{Chapters/Experiments/scenario3.tex}
 \input{Chapters/Experiments/scenario4.tex}
+\input{Chapters/Experiments/summary.tex}
 

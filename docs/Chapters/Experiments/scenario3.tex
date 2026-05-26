@@ -44,13 +44,13 @@ The first step is to compare again the expected baseline behaviour to the observ
 			\midrule
 			\multicolumn{4}{@{}l}{\textbf{Authorized IoT Services}} \\
 			NTP Synchronization (UDP/123) & 6 & 6 & $\checkmark$ Baseline Match \\
-			MQTT Keep-Alives (TCP/8883) & 121 & 121 & $\checkmark$ Baseline Match \\
+			MQTT Keep-Alives (TCP/8883) & 121 & 120 & $\checkmark$ Baseline Match \\
 			MQTT Telemetry Payloads (TCP/8883) & 5 & 5 & $\checkmark$ Baseline Match \\
 			Video Feed Stream (to Gateway/50005) & 1 & 1 & $\checkmark$ Terminated Early \\
 			TLS Cloud Telemetry (TCP/443) & 5 & 5 & $\checkmark$ Baseline Match \\
 			\addlinespace
 			\multicolumn{4}{@{}l}{\textbf{Adversarial \& Post-Exploitation Activity}} \\
-			DNS Queries (UDP/53) & 42 & 57 & $\times$ Hijacked C2 Polling (+15) \\
+			DNS Queries (UDP/53) & 42 & 58 & $\times$ Hijacked C2 Polling (+15) \\
 			Attacker Trigger Payload (TCP/443) & 0 & 1 & $\times$ Compromise Event \\
 			UDP Data Exfiltration (to Rogue/443) & 0 & 1 & $\times$ Egress MUD Violation \\
 			Zeek QUIC Protocol Anomalies & 0 & 1 & $\times$ Masquerading Detected \\
@@ -71,14 +71,14 @@ The first step is to compare again the expected baseline behaviour to the observ
 This minimal structural deviation proves that while legitimate device operations continue, sophisticated post-exploitation tactics can seamlessly blend into the authorized traffic baseline. This provides possible justification for application aware security engines: without analyzing the deep packet metadata (such as port 443 protocol masquerading and DNS domain anomalies), the exfiltration stream can remain functionally invisible to traditional network monitors.
 
 \paragraph{Camera Behaviour: Exfiltration \& Port Masquerading}\mbox{}\\
-The observed transmission behavior of the Smart Camera (Figure \ref{fig:camera_exfil}) highlights the critical danger of post-exploitation data exfiltration. At a macro volumetric level, the camera's total outbound throughput does not change, avoiding the asymmetric throughput anomalies that trigger basic firewalls. 
+The observed transmission behavior of the Smart Camera (Figure \ref{fig:camera_exfil3}) highlights the critical danger of post-exploitation data exfiltration. At a macro volumetric level, the camera's total outbound throughput does not change, avoiding the asymmetric throughput anomalies that trigger basic firewalls. 
 
 Instead, the anomaly is entirely topological. The graph clearly highlights the operational shift at $t=300$ (05:00). Following the attacker's trigger, the camera completely ceases its authorized UDP transmission to the local Gateway on port 50005. Immediately, an equivalent volume of high-density UDP traffic is spun up and redirected to the external rogue cloud infrastructure. By pushing this exfiltration stream through port 443, the attacker successfully camouflages the hijacked video feed, violating the device's zero-trust MUD profile without alerting pure bandwidth-threshold monitors.
 
 \begin{figure}
 	\centering
 	\includegraphics[width=0.9\linewidth]{../figures/scenario3/camera_volumetric_flow_exfil}
-	\caption{Scenario3: Throughput change of destination without bandwidth alteration.}
+	\caption{Scenario 3: Throughput change of destination without bandwidth alteration.}
 	\label{fig:cameravolumetricflowexfil}
 \end{figure}
 
@@ -97,12 +97,12 @@ The Smart Thermostat sees no changes in behaviour since it is not the target of 
 
 Figure \ref{fig:tcp_states_scenario3} visualizes the global TCP connection health during the Scenario 3 exfiltration attack. The most critical finding in this data is the total absence of structural anomalies. 
 
-Compared to the Scenario 2 brute-force attack flooded the network with over 6,000 \texttt{REJ} (Rejected) connections, the data here shows exactly 132 TCP flows, all of which successfully terminated with a normal \texttt{SF} state. Because the attacker utilized a single, targeted TCP payload to trigger the UDP exfiltration stream, no unauthorized ports were probed, and the IoT edge devices issued zero TCP Reset (RST) packets. By keeping the network's handshake equilibrium identical to the authorized Scenario 1 baseline, the adversary successfully bypassed structural anomaly detection, proving that severe MUD violations can occur within a mathematically healthy TCP footprint.
+Compared to the Scenario 2 brute-force attack flooded the network with over 6,000 \texttt{REJ} (Rejected) connections, the data here shows exactly 131 TCP flows, all of which successfully terminated with a normal \texttt{SF} state. Because the attacker utilized a single, targeted TCP payload to trigger the UDP exfiltration stream, no unauthorized ports were probed, and the IoT edge devices issued zero TCP Reset (RST) packets. By keeping the network's handshake equilibrium identical to the authorized Scenario 1 baseline, the adversary successfully bypassed structural anomaly detection, proving that severe MUD violations can occur within a mathematically healthy TCP footprint.
 
 \begin{figure}[H]
 	\centering
 	\includegraphics[width=0.75\linewidth]{../figures/scenario3/tcp_connection_states}
-	\caption{TCP Connection State Distribution (Scenario 3).}
+	\caption{Scenario 3: TCP Connection State Distribution.}
 	\label{fig:tcp_states_scenario3}
 \end{figure}
 
@@ -111,7 +111,7 @@ Finally, the matrix perfectly captures the authorized baseline behavior, with th
 \begin{figure}[H]
 	\centering
 	\includegraphics[width=0.75\linewidth]{../figures/scenario3/topology_traffic_matrix}
-	\caption{Empirical interaction heatmap detailing authorized internal network flows (Scenario 3).}
+	\caption{Scenario 3: Empirical interaction heatmap detailing authorized internal network flows.}
 	\label{fig:topologytrafficmatrix3}
 \end{figure}
 

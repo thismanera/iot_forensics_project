@@ -57,7 +57,7 @@ However, applying traditional network forensics to IoT environments introduces s
 	\item \textbf{Blurry Network Boundaries:} Not correctly defined perimeter edges in the network are an issue for IoT investigations. The location of evidence effects ease of access, possible connections to other devices (local or cloud based), etc. 
 	\item \textbf{Time Synchronization:} The existence of multiple sources presents the possibility of different time zone refereces, timestamp interpretations, clock drift issues which can all impact to the ability of generating a unified timeline\cite{Lillis2016}.
 	\item \textbf{Semantic gap in Behavioral Translation:} There is a disconnection between raw network data and physical device actions. It is highly complex to map a specific encrypted TCP flow to a real-world event, such as trying to distinguish if a smart lock's network spike indicates a legitimate user unlocking the door or an attacker brute forcing the credentials. 
-	\item \textbf{Volume and Background Noise:} IoT devices are constantly generating background traffic such as keep-alive messages, heartbeat signals to cloud servers and NTP time syncchronizations. Filtering this benign ambient noise to isolate the exact packets corresponding to a forensic event is a major analytical hurdle. 
+	\item \textbf{Volume and Background Noise:} IoT devices are constantly generating background traffic such as keep-alive messages, heartbeat signals to cloud servers and NTP time synchronizations. Filtering this benign ambient noise to isolate the exact packets corresponding to a forensic event is a major analytical hurdle. 
 \end{itemize}
 
 
@@ -69,7 +69,7 @@ Motivated by these specific challanges, specially the volatility of device-level
 The main objective of this project is to establish and validate a robust methodology for the behavioral reconstruction of IoT devices using passive network forensics. Due to the previously introduced challenges and limitations, this research focuses on leveraging network evidence to bridge the semantic gap between raw traffic and physical device actions. To achieve this, the project is designed to directly address the following research questions: 
 
 \begin{enumerate}
-	\item \textbf{Can IoT device activity be inferred solely from network traffic?} By analyzing encrypted and unencrypted packet flows, this project will determine the extent to which physical device actions can be deduced without accessing local device storage. 
+	\item \textbf{Can IoT device activity be inferred solely from network traffic?} By analyzing encrypted packet flows, this project will determine the extent to which physical device actions can be deduced without accessing local device storage. 
 	\item \textbf{Which network features best identify device behaviour?} The research will evaluate various traffic metrics such as packet lengths, flow durations, inter-arrival times and specific protocol usage to identify the most reliable indicators if distinct device states. 
 	\item \textbf{How accurately can forensic timelines be reconstructed?} By comparing inferred network events against a known baseline of simulated attacks, the project will measure the precision of network-based timeline reconstruction. 
 \end{enumerate}

@@ -81,7 +81,7 @@ The protocol runs over the TCP/IP stack and exhibits highly specific identifiabl
 	\item \textbf{Quality of Service (QoS) Flows:} MQTT defines three QoS levels (0: At most once, 1: At least once, 2: Exactly once) that dictate the reliability of message delivery. Higher QoS levels require a multi-step acknowledgment handshake (e.g., \texttt{PUBACK}, \texttt{PUBREC}, \texttt{PUBREL}). For an investigator, observing these acknowledgment sequences in the traffic flow provides insight into the importance and type of data being transmitted, even if the payload is encrypted \cite{Hassan2021}.
 \end{itemize}
 
-\begin{figure}
+\begin{figure}[H]
 	\centering
 	\includegraphics[width=0.7\linewidth]{Images/theory/mqtt}
 	\caption{MQTT work schema \cite{Manubes2023}}
@@ -157,11 +157,11 @@ The first objective when capturing network traffic must be to identify the devic
 \begin{itemize}
 	\item \textbf{Protocol Signatures:} Identifying the specific combination of protocols used. The use of a port or another indicates which protocol is implemented by the device. 
 	\item \textbf{Initialization and DNS Patterns:} When IoT devices boot or reconnect to a network, they frequently perform specific DNS queries to vendor-controlled domains for time synchronization or for cloud registration). Extracting these plaintext queries from DNS logs (typically UDP port 53) provides immediate, high-fidelity device attribution.
-	\item \textbf{TLS Handshake Metadata:} If TLS is used, as discussed in Section 2.1, extracting the Server Name Indication (SNI) and mapping the supported cipher suites negotiated during the \texttt{ClientHello} phase allows investigators to uniquely identify the device's embedded operating system \cite{MiettinMiettinen2017en2017}.
+	\item \textbf{TLS Handshake Metadata:} If TLS is used, as discussed in Section 2.1, extracting the Server Name Indication (SNI) and mapping the supported cipher suites negotiated during the \texttt{ClientHello} phase allows investigators to uniquely identify the device's embedded operating system \cite{Miettinen2017}.
 \end{itemize}
 
 \subsubsection{Behavioral and State Fingerprinting}
-Once the devices involved in the capture are identified, the focus turns to behavioral reconstruction. Behavioral fingerprinting seeks to relate variations in the network flow to specific physical actions. For example, differentiating between a camera standing by, actively recording, or being rebooted. Because the payloads are encrypted, this identification relies heavily on flow-level statistics \cite{Meidan2017}. The most crucial characteristics utilized for behavioral fingerprinting include:
+Once the devices involved in the capture are identified, the focus turns to behavioral reconstruction. Behavioral fingerprinting seeks to relate variations in the network flow to specific physical actions. For example, differentiating between a camera standing by, actively recording, or being rebooted. Because the payloads are encrypted, this identification relies heavily on flow-level statistics. The most crucial characteristics utilized for behavioral fingerprinting include:
 
 \begin{itemize}
 	\item \textbf{Packet Length and Size Distribution:} Specific actions trigger specific payload sizes. For example, a smart lock communicating an "unlock" command will consistently generate a highly specific, small packet size compared to a camera streaming a variable bitrate video.

@@ -5,7 +5,6 @@ Scenario 2 introduces the first active adversarial engagement within the experim
 \begin{enumerate}
 	\item Execute internal network reconnaissance and targeted port scanning against the IoT edge devices. This phase captures the systemic footprint of unauthorized topology mapping, specifically documenting the resulting surge in aborted and rejected TCP connection states.
 	\item Launch a volumetric credential brute-force attack targeting the Smart Camera's local TLS control channel (TCP port 443), capturing the exponential spike in network flow density as the attacker attempts to guess the administrative password.
-	\item Deploy a malicious configuration payload from the attacker node to the compromised camera, simulating a successful hijack and subsequent alteration of the device's operational state.
 	\item Extract and catalogue the resulting adversarial network metadata. By comparing metrics such as TCP state distributions, node-to-node adjacency matrices, and directional byte ratios against the Scenario 1 ground truth, the objective is to definitively prove the violation of the authorized MUD profiles.
 \end{enumerate}
 
@@ -20,8 +19,6 @@ This scenario expects to obtain the same behaviour from the network with the add
 	\item \textbf{Lateral Reconnaissance (TCP State Disruption):} The attacker node will execute a subnet scan. This will manifest forensically as a massive volumetric surge in \texttt{REJ} (Rejected) and \texttt{S0} (Attempted, no reply) Zeek connection states as the scanner enumerates closed ports, drastically skewing the healthy \texttt{SF} baseline established in Scenario 1. Consequently the number of connection flows together will increase, specially generating a huge spike during the network scan. 
 	
 	\item \textbf{High-Density Connection Spikes (Credential Brute-Force):} The targeted attack on the Smart Camera's local TLS control channel (TCP port 443) will shatter the flat, low-density operational baseline. We expect to capture a constant spike in the Network Flow Density (flows per minute), representing rapid, iterative password guessing from the adversary.
-	
-	\item \textbf{Asymmetric Throughput Inversion (Payload Injection):} Following a successful brute-force breach, the attacker will push a malicious configuration payload to the camera. This action will visibly corrupt the camera's Directional Byte Ratio; the device will transition from a steady $>99\%$ outbound data footprint to registering a sudden, anomalous surge in inbound received data (\texttt{resp\_bytes}).
 	
 	\item \textbf{Adjacency Matrix Violation (MUD Corruption):} The strict node-to-node isolation observed in the control scenario will be visibly broken. The Topology Interaction Heatmap will log unauthorized lateral traffic originating from \texttt{10.0.0.3} and terminating at all the devices of the network (network scan), as well as an increased number of packets for the Camera (\texttt{10.0.0.1}) due to the brute force attack.
 \end{itemize}
@@ -50,69 +47,65 @@ The first step is to compare the expected behaviour seen in the previous scenari
 			TLS Cloud Telemetry (TCP/443) & 5 & 5 & $\checkmark$ Baseline Match \\
 			\addlinespace
 			\multicolumn{4}{@{}l}{\textbf{Adversarial Activity (10.0.0.3)}} \\
-			Network Reconnaissance & 0 & 5,820 & $\times$ Attack Detected \\
-			Credential Brute-Force & 0 & 214 & $\times$ Attack Detected \\
-			Configuration Payload Injection & 0 & 12 & $\times$ Attack Detected \\
+			Network Reconnaissance & 0 & 3,074 & $\times$ Attack Detected \\
+			Credential Brute-Force & 0 & 2918 & $\times$ Attack Detected \\
 			\midrule
-			\textbf{Total Connection Flows} & \textbf{180} & \textbf{6,227} & \textbf{3,459\% Volumetric Spike} \\
+			\textbf{Total Connection Flows} & \textbf{180} & \textbf{5,992} & \textbf{3,329\% Volumetric Spike} \\
 			\bottomrule
 		\end{tabular}%
 	}
 	\caption{Scenario 2: Comparative Traffic Breakdown (Authorized vs. Adversarial)}
-	\label{tab:scenario2_traffic}
+	\label{tab:scenario2_traffic2}
 \end{table}
 
-\textbf{As expected, attacker activity has been registered.} The empirical data is characterized by a massive volumetric surge, contributing the overwhelming majority of the 6,046 attacker-involved connections. Specially, because the scanner indiscriminately enumerates port ranges across the \texttt{10.0.0.0/24} architecture, causing an aggregate network density of a 3.459\% volumetric spike. 
+\textbf{As expected, attacker activity has been registered.} The empirical data is characterized by a massive volumetric surge, contributing the overwhelming majority of the 5,992 attacker-involved connections. Specially, because the scanner indiscriminately enumerates port ranges across the \texttt{10.0.0.0/24} architecture, causing an aggregate network density of a 3,329\% volumetric spike. 
 
  This massive structural deviation proves that while legitimate device operations continue to execute in the background, they are effectively buried under a high-density noise floor during an active reconnaissance campaign. This provides an undeniable, quantifiable signature for anomaly detection engines.
 
 \paragraph{Camera Behaviour}\mbox{}\\
 The observed activity from the Smart Camera matches the MUD, since the attack does not target its bandwidth or other messages. Basically, it tries to perform a brute force attack. 
 
-The only difference is the existence of 12 messages sent from the attacker to the camera after apparently successfully logging in. This does not change the camera behaviour as a transmitter since the same proportion of outbound and inbound messages is kept. Contrary to what was expected, the asymmetric throughput did not happen. However, in another scenario, an attacker could upload malware or any other type of data to take control of the device. 
-
 \paragraph{Thermostat Behaviour}\mbox{}\\
 The Smart Thermostat sees no changes in behaviour since it is not the target of the attack.
 
 \paragraph{Other Metrics}\mbox{}\\
 
-As illustrated in Figure \ref{fig:networkflowdensity}, the empirical flow density exhibits three distinct volumetric anomalies. Rather than a random distribution of noise, these deviations perfectly map to the chronological execution of the adversarial kill chain:
+As illustrated in Figure \ref{fig:networkflowdensity2}, the empirical flow density exhibits three distinct volumetric anomalies. Rather than a random distribution of noise, these deviations perfectly map to the chronological execution of the adversarial kill chain:
 
 \begin{itemize}
 	\item \textbf{Phase 1: The Reconnaissance Surge (Initial Spike):} The massive, immediate vertical spike observed at the beginning of the timeline represents the automated subnet and port sweep. Because network scanners operate asynchronously—flooding the target with thousands of simultaneous \texttt{SYN} probes to enumerate open ports—this phase generates an explosive but brief density maximum before the scanner concludes its mapping phase.
 	
 	\item \textbf{Phase 2: The Brute-Force Plateau (Sustained Volatility):} Following the initial scan, the graph does not return to the authorized baseline of $\sim$8 flows per minute. Instead, it transitions into a sustained plateau. This elevated constant peak represents the credential brute-force attack against the Smart Camera's TLS control channel (TCP port 443). The script executes rapid, iterative login attempts, generating a persistent high-density noise floor that persists for the majority of the attack window.
 	
-	\item \textbf{Phase 3: The Payload Injection (Terminal Anomaly):} Near the conclusion of the capture window, the brute-force plateau ceases, followed by a final, microscopic spike of exactly 12 flows. Forensically, this is the most critical metric on the timeline: it represents the moment of successful authentication and the subsequent injection of the malicious configuration payload, effectively altering the edge device's operational state just before the attacker terminates the session.
 \end{itemize}
 
 \begin{figure}[H]
 	\centering
 	\includegraphics[width=0.9\linewidth]{../figures/scenario2/network_flow_density}
-	\caption{Network Flow Density (Scenario2).}
-	\label{fig:networkflowdensity}
+	\caption{Scenario 2: Network Flow Density.}
+	\label{fig:networkflowdensity2}
 \end{figure}
 
 The TCP connection state distribution, also provides clear structural proof of the attack's impact on the network. As seen in Scenario 1, In a stable baseline, TCP flows primarily resolve with an \texttt{SF} (Normal) state flag, indicating successful connections and clean teardowns. While authorized IoT traffic continued normally during the attack (registering 133 \texttt{SF} flows), it was completely eclipsed by a massive surge in anomalous activity. 
 
-Specifically, Zeek recorded 6,041 flows terminating in a \texttt{REJ} (Rejected) state. This flag is logged when a target actively refuses a connection attempt via a TCP Reset (RST) packet. This spike in rejected handshakes is the direct footprint of the attacker (\texttt{10.0.0.3}) scanning the network. As the scanner flooded the IoT edge devices with \texttt{SYN} probes targeting closed ports, the devices continuously issued RST packets to block the unauthorized access. 
+Specifically, Zeek recorded 5,987 flows terminating in a \texttt{REJ} (Rejected) state. This flag is logged when a target actively refuses a connection attempt via a TCP Reset (RST) packet. This spike in rejected handshakes is the direct footprint of the attacker (\texttt{10.0.0.3}) scanning the network. As the scanner flooded the IoT edge devices with \texttt{SYN} probes targeting closed ports, the devices continuously issued RST packets to block the unauthorized access. 
 
 Consequently, this sudden inversion of the \texttt{SF}-to-\texttt{REJ} ratio serves as an ideal, automated tripwire for detecting an active internal breach.
 
 \begin{figure}[H]
 	\centering
 	\includegraphics[width=0.9\linewidth]{../../iot_forensics_project/figures/scenario2/tcp_connection_states}
-	\caption{TCP Connection State Distribution (Scenario 2).}
-	\label{fig:tcpconnectionstates}
+	\caption{Scenario 2: TCP Connection State Distribution.}
+	\label{fig:tcpconnectionstates2}
 \end{figure}
 
-Finally, the interaction heatmaps is totally altered, in this scenario is exposing a network heavily saturated with unauthorized cross-node communications. The baseline has been broken by the attacker node which acts as the origin for all anomalous traffic. The matrix clearly distinguishes the broad network reconnaissance, evidenced by the 1,025 probes sent to both the Gateway and the Thermostat, from the targeted exploitation of the Smart Camera, which absorbed 3996 direct connections.
+Finally, the interaction heatmaps is totally altered, in this scenario is exposing a network heavily saturated with unauthorized cross-node communications. The baseline has been broken by the attacker node which acts as the origin for all anomalous traffic. The matrix clearly distinguishes the broad network reconnaissance, evidenced by the 1,025 probes sent to both the Gateway and the Thermostat, from the targeted exploitation of the Smart Camera, which absorbed 3,942 direct connections.
 
 
 \begin{figure}[H]
 	\centering
 	\includegraphics[width=0.9\linewidth]{../../iot_forensics_project/figures/scenario2/topology_traffic_matrix}
-	\caption{Empirical interaction heatmap detailing authorized internal network flows (Scenario 2).}
+	\caption{Scenario 2: Empirical interaction heatmap detailing authorized internal network flows.}
 	\label{fig:topologytrafficmatrix}
 \end{figure}
 

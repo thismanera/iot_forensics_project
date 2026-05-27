@@ -20,7 +20,7 @@ To ensure absolute data fidelity and admissibility, a strict chain of custody wa
 | **Scenario 2: Recon & Brute-Force** | `originals/scenario2_recon_bruteforce.pcap` <br> `working_copies/scenario2_working_copy.pcap` | `a94fcc7c7ef145fcdbb1bc4f70134005703ca5cd38b3b440969f67ea03abd094` <br> `a94fcc7c7ef145fcdbb1bc4f70134005703ca5cd38b3b440969f67ea03abd094` | ✅ Verified |
 | **Scenario 3: Exfiltration** | `originals/scenario3_exfiltration.pcap` <br> `working_copies/scenario3_working_copy.pcap` | `c3fd72fa20c38d241cb089c866a5e27a24fe264f0a1d04a208de53c3d35b0c17` <br> `c3fd72fa20c38d241cb089c866a5e27a24fe264f0a1d04a208de53c3d35b0c17` | ✅ Verified |
 | **Scenario 4: Botnet DDoS** | `originals/scenario4_botnet.pcap` <br> `working_copies/scenario4_working_copy.pcap` | `0be2d975155a51dbbab00fb96301bb66d30fed5138694c5abfd7d6c3dec9de70` <br> `0be2d975155a51dbbab00fb96301bb66d30fed5138694c5abfd7d6c3dec9de70` | ✅ Verified |
-| **Compressed Archives** | `original_scenarios.tar.xz` <br> `working_scenarios.tar.xz` | `fb0fe531f28d635dd614bd2bb914f4ec87845acb55f6507be17b43f340caafb4` <br> `7cd22d49fb7e893ee4865d4e6a0b39728541b884ea759dc17f4a7b0b0a86ecc5` | ✅ Verified |
+| **Compressed Archives** | `original_scenarios.zip` <br> `working_scenarios.zip` | `77b7a134c26a6abf6b477bd6193be37ab283bfa7a89b0fb39ab1cefe5de3b725` <br> `59942bf0fec02fb1af5172acc50bf045d63c06ea1a402f37ec7916bb56fe82bc` | ✅ Verified |
 
 ---
 
@@ -57,23 +57,56 @@ iot_forensics_project/
 ├── notebooks/                  # Jupyter notebooks for Pandas forensic analysis
 ├── figures/                    # Output charts, heatmaps, and graphs
 └── docs/                       # Thesis manuscript and LaTeX source files
-```
 ---
 
 ## Getting Started
 
-### 1. Prerequisites
+### 1. Prerequisites (System Dependencies)
 
-Ensure you have the following installed on your Ubuntu machine:
+Ensure you have the core network emulation and packet capture tools installed on your Ubuntu machine, along with the Python 3 virtual environment package:
 
 ```bash
 sudo apt update
-sudo apt install mininet openvswitch-testcontroller tcpdump python3-pip
-pip3 install pandas jupyter matplotlib seaborn
+sudo apt install mininet openvswitch-testcontroller tcpdump python3-venv
 
 ```
 
-### 2. Open vSwitch Controller Fix (Ubuntu 20.04+)
+### 2. Python Virtual Environment Setup
+
+To isolate the project's dependencies and prevent system conflicts, initialize and activate a Python virtual environment:
+
+```bash
+# Create the virtual environment in a folder named 'venv'
+python3 -m venv venv
+
+# Activate the virtual environment
+source venv/bin/activate
+
+```
+
+*(Note: Your terminal prompt should now be prefixed with `(venv)` to indicate it is active. You must activate this environment anytime you run the analysis notebooks).*
+
+### 3. Install Python Dependencies
+
+With the virtual environment active, install the required forensic analysis packages via the `requirements.txt` file:
+
+```bash
+pip install -r requirements.txt
+
+```
+
+> **Note:** Ensure your `requirements.txt` file is in the root directory and contains the following dependencies:
+> ```text
+> pandas
+> jupyter
+> matplotlib
+> seaborn
+> 
+> ```
+> 
+> 
+
+### 4. Open vSwitch Controller Fix (Ubuntu 20.04+)
 
 Modern Ubuntu repositories replaced the legacy OVS controller. You must symlink the new test controller so Mininet can find it:
 
@@ -82,19 +115,20 @@ sudo ln -s /usr/bin/ovs-testcontroller /usr/bin/ovs-controller
 
 ```
 
-### 3. Running the Simulations
+### 5. Running the Simulations
 
 To prevent out-of-memory (OOM) errors and forensic timing distortion (IAT corruption), experiments must be run sequentially.
 You can run the automated bash script to execute the entire kill chain:
 
 ```bash
-chmod +x code/pcap_generators/*
-sudo pyhton3 code/pcap_generators/scenarioX.py  
+chmod +x code/run_all_experiments.sh
+sudo ./code/run_all_experiments.sh
+
 ```
 
-The PCAP generators must be executed as sudo since tcpdump requires it to capture traffic.
+*Note: This script automatically flushes the virtual switches (`sudo mn -c`) between scenarios to prevent zombie processes from holding port 6653.*
 
-### 4. Extracting Metadata with Zeek
+### 6. Extracting Metadata with Zeek
 
 Ensure Zeek is installed and added to your `$PATH`:
 
@@ -112,9 +146,9 @@ zeek -C -r pcaps/scenario4.pcap Log::default_logdir=zeek_logs/scenario4_logs
 
 *(The `-C` flag is required to bypass virtualized Mininet checksum offloading errors).*
 
-### 5. Data Analysis
+### 7. Data Analysis
 
-Launch Jupyter to explore the forensic extraction notebooks:
+Launch Jupyter to explore the forensic extraction notebooks (ensure your `venv` is still active):
 
 ```bash
 jupyter notebook
@@ -122,5 +156,3 @@ jupyter notebook
 ```
 
 Navigate to the `notebooks/` directory and open the analysis files to view the generated interaction heatmaps, TCP state distributions, and throughput graphs.
-
----

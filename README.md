@@ -58,6 +58,7 @@ iot_forensics_project/
 ├── figures/                    # Output charts, heatmaps, and graphs
 └── docs/                       # Thesis manuscript and LaTeX source files
 ---
+```
 
 ## Getting Started
 
